@@ -1,5 +1,5 @@
 [workspace]
-members = ["folding-svg"]
+members = ["folding-svg", "font-style"]
 resolver = "2"
 
 
