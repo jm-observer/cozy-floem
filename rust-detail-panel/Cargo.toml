@@ -1,0 +1,15 @@
+[package]
+name = "rust-detail-panel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+log = {workspace = true}
+custom-utils = {workspace = true}
+floem = {workspace = true}
+lapce-xi-rope = {workspace = true}
+doc = {workspace = true}
+anyhow = {workspace = true}
+
+[features]
+default = ["custom-utils/dev"]

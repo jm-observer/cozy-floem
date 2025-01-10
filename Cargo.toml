@@ -1,9 +1,12 @@
 [workspace]
-members = ["folding-svg", "font-style"]
+members = ["folding-svg", "font-style", "rust-detail-panel"]
 resolver = "2"
 
 
 [workspace.dependencies]
-log = "0.4.17"
-custom-utils = "0.10.14"
-floem = { git="https://github.com/jm-observer/floem.git", branch = "main-fork", features = ["editor", "serde", "default-image-formats", "rfd-async-std", "vger"], default-features = false }
+log = "=0.4.22"
+custom-utils = "=0.10.17"
+floem = { git="https://github.com/jm-observer/floem.git", branch = "main-fork-2", features = ["editor", "serde", "default-image-formats", "rfd-async-std", "vger"], default-features = false }
+lapce-xi-rope = {git = "https://github.com/jm-observer/xi-editor.git", features = ["serde"]}
+doc = {git = "https://github.com/jm-observer/doc.git"}
+anyhow = "=1.0.95"
