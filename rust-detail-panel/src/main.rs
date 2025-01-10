@@ -8,8 +8,8 @@ use floem::keyboard::{Key, NamedKey};
 use floem::kurbo::{BezPath, Line, Point, Rect, Stroke};
 use floem::peniko::Color;
 use floem::prelude::{create_rw_signal, Decorators, RwSignal, SignalUpdate, SignalWith};
-use floem::reactive::{create_effect, Trigger};
-use floem::style::Style;
+use floem::reactive::{create_effect, SignalGet, Trigger};
+use floem::style::{CursorStyle, Style};
 use floem::taffy::NodeId;
 use floem::views::scroll;
 use log::{error, info};
@@ -23,7 +23,8 @@ fn main() {
 }
 
 fn app_view() -> impl IntoView {
-    let mut doc = SimpleDoc::new(LineEnding::CrLf);
+    let hover_hyperlink = create_rw_signal(None);
+    let mut doc = SimpleDoc::new(LineEnding::CrLf, hover_hyperlink);
     for i in 0..30 {
         init_content(&mut doc, i);
     }
@@ -62,6 +63,9 @@ fn app_view() -> impl IntoView {
                 _ => (),
             }
         }
+    }).style(move |x| {
+        let hover_hyperlink = hover_hyperlink.get();
+        x.apply_if(hover_hyperlink.is_some(), |x| x.cursor(CursorStyle::Pointer))
     });
     create_effect(move |_| {
         repaint.track();

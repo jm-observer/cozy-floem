@@ -9,7 +9,8 @@ use floem::text::{Attrs, AttrsList, FamilyOwned, FONT_SYSTEM, LineHeightValue, W
 use anyhow::{anyhow, Result};
 use doc::hit_position_aff;
 use doc::lines::word::WordCursor;
-use floem::reactive::{create_trigger, Trigger};
+use floem::prelude::{SignalGet, SignalUpdate};
+use floem::reactive::{create_trigger, RwSignal, Trigger};
 use log::info;
 
 #[derive(Copy, Clone, Debug)]
@@ -67,11 +68,12 @@ pub struct SimpleDoc {
     pub line_height: f64,
     pub cursor: Cursor,
     pub repaint: Trigger,
-    pub hyperlink_regions: Vec<Rect>,
+    pub hyperlink_regions: Vec<(Rect, Hyperlink)>,
+    hover_hyperlink: RwSignal<Option<usize>>,
 }
 
 impl SimpleDoc {
-    pub fn new(line_ending: LineEnding) -> Self {
+    pub fn new(line_ending: LineEnding, hover_hyperlink: RwSignal<Option<usize>>) -> Self {
         Self {
             rope: "".into(),
             visual_line: vec![],
@@ -84,12 +86,19 @@ impl SimpleDoc {
             },
             repaint: create_trigger(),
             hyperlink_regions: vec![],
+            hover_hyperlink,
         }
     }
 
     pub fn pointer_down(&mut self, event: PointerInputEvent) -> Result<()> {
         match event.count {
             1 => {
+                if let Some(link) = self.hover_hyperlink.get_untracked() {
+                    if let Some(link) = self.hyperlink_regions.get(link) {
+                        info!("todo {}", link.1.link);
+                        // return Ok(())
+                    }
+                }
                 let offset = self.offset_of_pos(event.pos)?.0;
                 self.cursor.dragging = true;
                 if event.modifiers.shift() {
@@ -118,6 +127,21 @@ impl SimpleDoc {
         Ok(())
     }
     pub fn pointer_move(&mut self, event: PointerMoveEvent) -> Result<()> {
+        if let Some(x) = self.hyperlink_regions.iter().enumerate().find_map(|(index, x)| {
+            if x.0.contains(event.pos) {
+                Some(index)
+            } else {
+                None
+            }
+        }) {
+            if self.hover_hyperlink.get_untracked().is_none() {
+                self.hover_hyperlink.set(Some(x));
+            }
+        } else {
+            if self.hover_hyperlink.get_untracked().is_some() {
+                self.hover_hyperlink.set(None);
+            }
+        }
         if self.cursor.dragging {
             let offset = self.offset_of_pos(event.pos)?.0;
             self.cursor.position = Position::Region { start: self.cursor.start(), end: offset };
@@ -154,21 +178,21 @@ impl SimpleDoc {
     }
 
     fn height_of_line(&self, line: usize) -> f64 {
-        line as f64* self.line_height
+        line as f64 * self.line_height
     }
 
     pub fn select_of_cursor(&self) -> Result<Vec<Rect>> {
-        let Position::Region {start, end} = &self.cursor.position  else {
+        let Position::Region { start, end } = &self.cursor.position  else {
             return Ok(vec![])
         };
         let (start_offset, end_offset) =
-        if start > end {
-            (*end, *start)
-        } else if start < end {
-            (*start, *end)
-        } else {
-            return Ok(vec![])
-        };
+            if start > end {
+                (*end, *start)
+            } else if start < end {
+                (*start, *end)
+            } else {
+                return Ok(vec![]);
+            };
         let (start_point, mut start_line, _) = self.point_of_offset(start_offset)?;
         let (mut end_point, end_line, _) = self.point_of_offset(end_offset)?;
         end_point.y += self.line_height;
@@ -186,7 +210,6 @@ impl SimpleDoc {
             rects.push(Rect::from_points(Point::new(0.0, self.height_of_line(start_line)), end_point));
             Ok(rects)
         }
-
     }
 
     pub fn append_line(&mut self, content: &str, attrs_list: AttrsList, hyperlink: Vec<Hyperlink>) {
@@ -199,16 +222,16 @@ impl SimpleDoc {
         let y = self.height_of_line(line_index) + self.line_height;
         let mut font_system = FONT_SYSTEM.lock();
         let text = TextLayout::new_with_font_system(line_index, content, attrs_list, &mut font_system);
-        let points: Vec<(f64, f64)> = hyperlink.into_iter().map(|x| {
+        let points: Vec<(f64, f64, Hyperlink)> = hyperlink.into_iter().map(|x| {
             let x0 = text.hit_position(x.start_offset).point.x;
             let x1 = text.hit_position(x.end_offset).point.x;
-            (x0, x1)
+            (x0, x1, x)
         }).collect();
-        let hyperlinks: Vec<(Point, Point)> = points.clone().into_iter().map(|(x0, x1) | {
-            (Point::new(x0, y-1.0), Point::new(x1, y-1.0))
+        let hyperlinks: Vec<(Point, Point)> = points.iter().map(|(x0, x1, _)| {
+            (Point::new(*x0, y - 1.0), Point::new(*x1, y - 1.0))
         }).collect();
-        let mut hyperlink_region: Vec<Rect> = points.into_iter().map(|(x0, x1) | {
-            Rect::new(x0, y - self.line_height,  x1, y)
+        let mut hyperlink_region: Vec<(Rect, Hyperlink)> = points.into_iter().map(|(x0, x1, data)| {
+            (Rect::new(x0, y - self.line_height, x1, y), data)
         }).collect();
         self.visual_line.push(VisualLine {
             line_index,
