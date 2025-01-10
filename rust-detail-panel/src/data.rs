@@ -9,9 +9,10 @@ use floem::text::{Attrs, AttrsList, FamilyOwned, FONT_SYSTEM, LineHeightValue, W
 use anyhow::{anyhow, Result};
 use doc::hit_position_aff;
 use doc::lines::word::WordCursor;
+use floem::Clipboard;
 use floem::prelude::{SignalGet, SignalUpdate};
 use floem::reactive::{create_trigger, RwSignal, Trigger};
-use log::info;
+use log::{error, info};
 
 #[derive(Copy, Clone, Debug)]
 pub enum Position {
@@ -43,21 +44,20 @@ impl Cursor {
         }
     }
 
-    // pub fn dragging(&mut self) {
-    //     self.dragging = true;
-    // }
-    //
-    // pub fn dragged(&mut self) {
-    //     self.dragging = false
-    // }
+    pub fn region(&self) -> Option<(usize, usize)> {
+        if let Position::Region { start, end } = self.position {
+            if start > end {
+                Some((end, start))
+            } else if start < end {
+                Some((start, end))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 
-    // pub fn update_offset(&mut self, offset: usize) {
-    //     if self.dragging {
-    //         self.position = Position::Region { start: self.start(), end: offset };
-    //     } else {
-    //         self.position = Position::Caret(offset)
-    //     }
-    // }
 }
 
 pub struct SimpleDoc {
@@ -122,8 +122,6 @@ impl SimpleDoc {
                 self.repaint.notify();
             }
         }
-
-        info!("{:?} {:?}", event.pos, self.cursor);
         Ok(())
     }
     pub fn pointer_move(&mut self, event: PointerMoveEvent) -> Result<()> {
@@ -152,13 +150,16 @@ impl SimpleDoc {
 
     pub fn pointer_up(&mut self, _event: PointerInputEvent) -> Result<()> {
         self.cursor.dragging = false;
-        // let offset = self.offset_of_pos(event.pos)?.0;
-        // if offset != self.cursor.start() {
-        //     self.cursor.position = Position::Region { start: self.cursor.start(), end: offset };
-        //     self.repaint.notify();
-        // }
-        // info!("{:?} {:?}", event.pos, self.cursor);
         Ok(())
+    }
+
+    pub fn copy_select(&self) {
+        if let Some((start, end)) = self.cursor.region() {
+            let content = self.rope.slice_to_cow(start..end).to_string();
+            if let Err(err) = Clipboard::set_contents(content) {
+                error!("{err:?}");
+            }
+        }
     }
 
     pub fn position_of_cursor(&self) -> Result<Rect> {
@@ -182,17 +183,9 @@ impl SimpleDoc {
     }
 
     pub fn select_of_cursor(&self) -> Result<Vec<Rect>> {
-        let Position::Region { start, end } = &self.cursor.position  else {
+        let Some((start_offset, end_offset)) = self.cursor.region()  else {
             return Ok(vec![])
         };
-        let (start_offset, end_offset) =
-            if start > end {
-                (*end, *start)
-            } else if start < end {
-                (*start, *end)
-            } else {
-                return Ok(vec![]);
-            };
         let (start_point, mut start_line, _) = self.point_of_offset(start_offset)?;
         let (mut end_point, end_line, _) = self.point_of_offset(end_offset)?;
         end_point.y += self.line_height;

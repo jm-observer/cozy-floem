@@ -63,17 +63,17 @@ fn app_view() -> impl IntoView {
                 _ => (),
             }
         }
+    }).keyboard_navigable().on_key_down(Key::Character("c".into()), |modifiers| modifiers.control(), move |_| {
+        doc.with_untracked(|x| x.copy_select());
     }).style(move |x| {
         let hover_hyperlink = hover_hyperlink.get();
         x.apply_if(hover_hyperlink.is_some(), |x| x.cursor(CursorStyle::Pointer))
     });
     create_effect(move |_| {
         repaint.track();
-        info!("repaint.track");
         id.request_paint();
     });
     let view = scroll(view).on_scroll(move |viewport| {
-        info!("on_scroll {viewport:?}");
         doc.update(|x| {
             x.viewport = viewport;
         });
@@ -164,7 +164,6 @@ impl View for EditorView {
         let (line_height, lines, position_of_cursor, selections) = self
             .doc
             .with_untracked(|x| (x.line_height, x.visual_line.clone(), x.position_of_cursor(), x.select_of_cursor()));
-        info!("paint lines={} cursor rect = {:?}", lines.len(), position_of_cursor);
         match selections {
             Ok(rects) => {
                 for rect in rects {
