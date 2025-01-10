@@ -119,12 +119,54 @@ impl SimpleDoc {
 
     pub fn position_of_cursor(&self) -> Result<Rect> {
         let offset = self.cursor.offset();
+        let (point, line, _) = self.point_of_offset(offset)?;
+        let rect = Rect::from_origin_size((point.x - 1.0, point.y), (2.0, self.line_height));
+        Ok(rect)
+    }
+
+    fn point_of_offset(&self, offset: usize) -> Result<(Point, usize, usize)> {
         let line = self.rope.line_of_offset(offset);
         let offset_line = self.rope.offset_of_line(line)?;
         let text = &self.visual_line.get(line).ok_or(anyhow!("not found visual line: {line}"))?.text_layout.text;
-        let point = hit_position_aff(text, offset - offset_line, true).point;
-        let rect = Rect::from_origin_size((point.x - 1.0, point.y + (line as f64 - 0.5)* self.line_height), (2.0, self.line_height));
-        Ok(rect)
+        let mut point = hit_position_aff(text, offset - offset_line, true).point;
+        point.y = self.height_of_line(line);
+        Ok((point, line, offset_line))
+    }
+
+    fn height_of_line(&self, line: usize) -> f64 {
+        line as f64* self.line_height
+    }
+
+    pub fn select_of_cursor(&self) -> Result<Vec<Rect>> {
+        let Position::Region {start, end} = &self.cursor.position  else {
+            return Ok(vec![])
+        };
+        let (start_offset, end_offset) =
+        if start > end {
+            (*end, *start)
+        } else if start < end {
+            (*start, *end)
+        } else {
+            return Ok(vec![])
+        };
+        let (start_point, mut start_line, _) = self.point_of_offset(start_offset)?;
+        let (mut end_point, end_line, _) = self.point_of_offset(end_offset)?;
+        end_point.y += self.line_height;
+        if start_line == end_line {
+            Ok(vec![Rect::from_points(start_point, end_point)])
+        } else {
+            let mut rects = Vec::with_capacity(end_line - start_line + 1);
+            let viewport_width = self.viewport.width();
+            rects.push(Rect::from_origin_size(start_point, (viewport_width, self.line_height)));
+            start_line += 1;
+            while start_line < end_line {
+                rects.push(Rect::from_origin_size(Point::new(0.0, self.height_of_line(start_line)), (viewport_width, self.line_height)));
+                start_line += 1;
+            }
+            rects.push(Rect::from_points(Point::new(0.0, self.height_of_line(start_line)), end_point));
+            Ok(rects)
+        }
+
     }
 
     pub fn append_line(&mut self, content: &str, attrs_list: AttrsList, extra_style: Vec<LineExtraStyle>) {

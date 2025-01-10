@@ -37,14 +37,15 @@ fn app_view() -> impl IntoView {
     let view = EditorView {
         id,
         inner_node: None,
-        doc, repaint
+        doc,
+        repaint,
     }.on_event_cont(EventListener::PointerDown, move |event| {
         if let Event::PointerDown(pointer_event) = event {
             let rs = doc.try_update(|x| x.pointer_down(pointer_event.clone()));
             match rs {
                 Some(Err(err)) => error!("{err:?}"),
                 None => error!("doc try update point down fail"),
-                _ =>(),
+                _ => (),
             }
         }
     }).on_event_cont(EventListener::PointerMove, move |event| {
@@ -53,7 +54,7 @@ fn app_view() -> impl IntoView {
             match rs {
                 Some(Err(err)) => error!("{err:?}"),
                 None => error!("doc try update point move fail"),
-                _ =>(),
+                _ => (),
             }
         }
     }).on_event_cont(EventListener::PointerUp, move |event| {
@@ -62,11 +63,11 @@ fn app_view() -> impl IntoView {
             match rs {
                 Some(Err(err)) => error!("{err:?}"),
                 None => error!("doc try update point up fail"),
-                _ =>(),
+                _ => (),
             }
         }
     });
-    create_effect(move | _| {
+    create_effect(move |_| {
         repaint.track();
         info!("repaint.track");
         id.request_paint();
@@ -77,17 +78,17 @@ fn app_view() -> impl IntoView {
             x.viewport = viewport;
         });
         id.request_layout();
-    // })
-    //     .on_event_stop(EventListener::PointerMove, move |event| {
-    //         if let Event::PointerMove(pointer_event) = event {
-    //             e_data.get_untracked().pointer_move(pointer_event);
-    //         }
-    //     })
-    //     .on_event_stop(EventListener::PointerUp, move |event| {
-    //         if let Event::PointerUp(pointer_event) = event {
-    //             e_data.get_untracked().pointer_up(pointer_event);
-    //         }
-        });
+        // })
+        //     .on_event_stop(EventListener::PointerMove, move |event| {
+        //         if let Event::PointerMove(pointer_event) = event {
+        //             e_data.get_untracked().pointer_move(pointer_event);
+        //         }
+        //     })
+        //     .on_event_stop(EventListener::PointerUp, move |event| {
+        //         if let Event::PointerUp(pointer_event) = event {
+        //             e_data.get_untracked().pointer_up(pointer_event);
+        //         }
+    });
     view.style(|x| x.width(300.0).height(300.0).border(1.0)).on_key_up(
         Key::Named(NamedKey::F11),
         |m| m.is_empty(),
@@ -101,7 +102,7 @@ pub struct EditorView {
     id: ViewId,
     inner_node: Option<NodeId>,
     doc: RwSignal<SimpleDoc>,
-    pub repaint: Trigger
+    pub repaint: Trigger,
 }
 
 
@@ -118,8 +119,7 @@ impl View for EditorView {
         &mut self,
         _cx: &mut floem::context::UpdateCx,
         _state: Box<dyn std::any::Any>,
-    ) {
-    }
+    ) {}
 
     fn layout(
         &mut self,
@@ -161,15 +161,19 @@ impl View for EditorView {
 
     fn paint(&mut self, cx: &mut PaintCx) {
         self.repaint.track();
-        let (viewport, line_height, lines, position_of_cursor) = self
+        let (viewport, line_height, lines, position_of_cursor, selections) = self
             .doc
-            .with_untracked(|x| (x.viewport, x.line_height, x.visual_line.clone(), x.position_of_cursor()));
+            .with_untracked(|x| (x.viewport, x.line_height, x.visual_line.clone(), x.position_of_cursor(), x.select_of_cursor()));
         info!("paint lines={} cursor rect = {:?}", lines.len(), position_of_cursor);
-        for line_info in lines {
-            let y = line_info.line_index as f64 * line_height;
-            let text_layout = line_info.text_layout;
-            paint_extra_style(cx, &text_layout.extra_style, y, viewport);
-            cx.draw_text_with_layout(text_layout.text.layout_runs(), Point::new(0.0, y));
+        match selections {
+            Ok(rects) => {
+                for rect in rects {
+                    cx.fill(&rect, &Color::parse("#C5E1C5").unwrap(), 0.0);
+                }
+            }
+            Err(err) => {
+                error!("{err:?}");
+            }
         }
         // paint cursor
         match position_of_cursor {
@@ -179,6 +183,12 @@ impl View for EditorView {
             Err(err) => {
                 error!("{err:?}");
             }
+        }
+        for line_info in lines {
+            let y = line_info.line_index as f64 * line_height;
+            let text_layout = line_info.text_layout;
+            paint_extra_style(cx, &text_layout.extra_style, y, viewport);
+            cx.draw_text_with_layout(text_layout.text.layout_runs(), Point::new(0.0, y));
         }
         // paint select
     }
