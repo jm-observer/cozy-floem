@@ -9,6 +9,7 @@ use floem::style::LineHeight;
 use floem::text::{Attrs, AttrsList, FamilyOwned, FONT_SYSTEM, LineHeightValue, Weight};
 use anyhow::{anyhow, Result};
 use doc::hit_position_aff;
+use doc::lines::word::WordCursor;
 use floem::reactive::{create_trigger, Trigger};
 use log::info;
 
@@ -86,20 +87,38 @@ impl SimpleDoc {
     }
 
     pub fn pointer_down(&mut self, event: PointerInputEvent) -> Result<()> {
-        let offset = self.offset_of_pos(event.pos)?;
-        self.cursor.dragging = true;
-        if event.modifiers.shift() {
-            self.cursor.position = Position::Region { start: self.cursor.start(), end: offset };
-        } else {
-            self.cursor.position = Position::Caret(offset);
+        match event.count {
+            1 => {
+                let offset = self.offset_of_pos(event.pos)?.0;
+                self.cursor.dragging = true;
+                if event.modifiers.shift() {
+                    self.cursor.position = Position::Region { start: self.cursor.start(), end: offset };
+                } else {
+                    self.cursor.position = Position::Caret(offset);
+                }
+                self.repaint.notify();
+            }
+            2 => {
+                let offset = self.offset_of_pos(event.pos)?.0;
+                let (start_code, end_code) = WordCursor::new(&self.rope, offset).select_word();
+                self.cursor.position = Position::Region { start: start_code, end: end_code };
+                self.repaint.notify();
+            }
+            _ => {
+                let line = self.offset_of_pos(event.pos)?.1;
+                let offset = self.rope.offset_of_line(line)?;
+                let next_line_offset = self.rope.offset_of_line(line + 1)?;
+                self.cursor.position = Position::Region { start: offset, end: next_line_offset };
+                self.repaint.notify();
+            }
         }
-        self.repaint.notify();
+
         info!("{:?} {:?}", event.pos, self.cursor);
         Ok(())
     }
     pub fn pointer_move(&mut self, event: PointerMoveEvent) -> Result<()> {
         if self.cursor.dragging {
-            let offset = self.offset_of_pos(event.pos)?;
+            let offset = self.offset_of_pos(event.pos)?.0;
             self.cursor.position = Position::Region { start: self.cursor.start(), end: offset };
             self.repaint.notify();
         }
@@ -108,7 +127,7 @@ impl SimpleDoc {
 
     pub fn pointer_up(&mut self, event: PointerInputEvent) -> Result<()> {
         self.cursor.dragging = false;
-        let offset = self.offset_of_pos(event.pos)?;
+        let offset = self.offset_of_pos(event.pos)?.0;
         if offset != self.cursor.start() {
             self.cursor.position = Position::Region { start: self.cursor.start(), end: offset };
             self.repaint.notify();
@@ -185,11 +204,12 @@ impl SimpleDoc {
         self.repaint.notify();
     }
 
-    pub fn offset_of_pos(&self, point: Point) -> Result<usize> {
+    /// return (offset_of_buffer, line)
+    pub fn offset_of_pos(&self, point: Point) -> Result<(usize, usize)> {
         let line = (point.y / self.line_height) as usize;
         let text_layout = &self.visual_line.get(line).ok_or(anyhow!("not found {} line", line))?.text_layout;
         let hit_point = text_layout.text.hit_point(Point::new(point.x, 0.0));
-        Ok(self.rope.offset_of_line(line)? + hit_point.index)
+        Ok((self.rope.offset_of_line(line)? + hit_point.index, line))
     }
 }
 
