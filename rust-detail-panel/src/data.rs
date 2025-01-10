@@ -1,11 +1,10 @@
 use std::borrow::Cow;
-use lapce_xi_rope::{Interval, Rope};
+use lapce_xi_rope::{Rope};
 use doc::lines::layout::*;
 use doc::lines::line_ending::LineEnding;
 use floem::kurbo::{Point, Rect};
 use floem::peniko::Color;
 use floem::pointer::{PointerInputEvent, PointerMoveEvent};
-use floem::style::LineHeight;
 use floem::text::{Attrs, AttrsList, FamilyOwned, FONT_SYSTEM, LineHeightValue, Weight};
 use anyhow::{anyhow, Result};
 use doc::hit_position_aff;
@@ -68,6 +67,7 @@ pub struct SimpleDoc {
     pub line_height: f64,
     pub cursor: Cursor,
     pub repaint: Trigger,
+    pub hyperlink_regions: Vec<Rect>,
 }
 
 impl SimpleDoc {
@@ -82,7 +82,8 @@ impl SimpleDoc {
                 dragging: false,
                 position: Position::Caret(0),
             },
-            repaint: create_trigger()
+            repaint: create_trigger(),
+            hyperlink_regions: vec![],
         }
     }
 
@@ -125,20 +126,20 @@ impl SimpleDoc {
         Ok(())
     }
 
-    pub fn pointer_up(&mut self, event: PointerInputEvent) -> Result<()> {
+    pub fn pointer_up(&mut self, _event: PointerInputEvent) -> Result<()> {
         self.cursor.dragging = false;
-        let offset = self.offset_of_pos(event.pos)?.0;
-        if offset != self.cursor.start() {
-            self.cursor.position = Position::Region { start: self.cursor.start(), end: offset };
-            self.repaint.notify();
-        }
-        info!("{:?} {:?}", event.pos, self.cursor);
+        // let offset = self.offset_of_pos(event.pos)?.0;
+        // if offset != self.cursor.start() {
+        //     self.cursor.position = Position::Region { start: self.cursor.start(), end: offset };
+        //     self.repaint.notify();
+        // }
+        // info!("{:?} {:?}", event.pos, self.cursor);
         Ok(())
     }
 
     pub fn position_of_cursor(&self) -> Result<Rect> {
         let offset = self.cursor.offset();
-        let (point, line, _) = self.point_of_offset(offset)?;
+        let (point, _line, _) = self.point_of_offset(offset)?;
         let rect = Rect::from_origin_size((point.x - 1.0, point.y), (2.0, self.line_height));
         Ok(rect)
     }
@@ -188,19 +189,32 @@ impl SimpleDoc {
 
     }
 
-    pub fn append_line(&mut self, content: &str, attrs_list: AttrsList, extra_style: Vec<LineExtraStyle>) {
+    pub fn append_line(&mut self, content: &str, attrs_list: AttrsList, hyperlink: Vec<Hyperlink>) {
         let len = self.rope.len();
         if len > 0 {
             self.rope.edit(len..len, self.line_ending.get_chars());
         }
         self.rope.edit(self.rope.len()..self.rope.len(), content);
         let line_index = self.rope.line_of_offset(self.rope.len());
+        let y = self.height_of_line(line_index) + self.line_height;
         let mut font_system = FONT_SYSTEM.lock();
         let text = TextLayout::new_with_font_system(line_index, content, attrs_list, &mut font_system);
+        let points: Vec<(f64, f64)> = hyperlink.into_iter().map(|x| {
+            let x0 = text.hit_position(x.start_offset).point.x;
+            let x1 = text.hit_position(x.end_offset).point.x;
+            (x0, x1)
+        }).collect();
+        let hyperlinks: Vec<(Point, Point)> = points.clone().into_iter().map(|(x0, x1) | {
+            (Point::new(x0, y-1.0), Point::new(x1, y-1.0))
+        }).collect();
+        let mut hyperlink_region: Vec<Rect> = points.into_iter().map(|(x0, x1) | {
+            Rect::new(x0, y - self.line_height,  x1, y)
+        }).collect();
         self.visual_line.push(VisualLine {
             line_index,
-            text_layout: TextLayoutLine { text, extra_style },
+            text_layout: TextLayoutLine { text, hyperlinks },
         });
+        self.hyperlink_regions.append(&mut hyperlink_region);
         self.repaint.notify();
     }
 
@@ -220,9 +234,15 @@ pub struct VisualLine {
     pub text_layout: TextLayoutLine,
 }
 
+pub struct Hyperlink {
+    pub start_offset: usize,
+    pub end_offset: usize,
+    pub link: String,
+}
+
 #[derive(Clone)]
 pub struct TextLayoutLine {
-    pub extra_style: Vec<LineExtraStyle>,
+    pub hyperlinks: Vec<(Point, Point)>,
     pub text: TextLayout,
 }
 
@@ -243,5 +263,9 @@ pub(crate) fn init_content(doc: &mut SimpleDoc, i: usize) {
         .font_size(font_size as f32).weight(Weight::BOLD)
         .line_height(LineHeightValue::Px(23.0));
     attr_list.add_span(3..12, attrs);
-    doc.append_line(&content, attr_list, vec![]);
+    doc.append_line(&content, attr_list, vec![Hyperlink {
+        start_offset: 3,
+        end_offset: 12,
+        link: "abc".to_string(),
+    }]);
 }

@@ -1,20 +1,16 @@
 mod data;
 
-use std::path::PathBuf;
-use doc::lines::layout::LineExtraStyle;
 use doc::lines::line_ending::LineEnding;
 use floem::{IntoView, peniko, Renderer, View, ViewId};
 use floem::context::{PaintCx, StyleCx};
 use floem::event::{Event, EventListener};
 use floem::keyboard::{Key, NamedKey};
-use floem::kurbo::{BezPath, Line, Point, Rect, Size, Stroke};
+use floem::kurbo::{BezPath, Line, Point, Rect, Stroke};
 use floem::peniko::Color;
-use floem::pointer::PointerInputEvent;
 use floem::prelude::{create_rw_signal, Decorators, RwSignal, SignalUpdate, SignalWith};
-use floem::reactive::{create_effect, Scope, Trigger};
+use floem::reactive::{create_effect, Trigger};
 use floem::style::Style;
 use floem::taffy::NodeId;
-use floem::text::{Attrs, AttrsList, TextLayout};
 use floem::views::scroll;
 use log::{error, info};
 use log::LevelFilter::Info;
@@ -148,7 +144,7 @@ impl View for EditorView {
 
     fn compute_layout(
         &mut self,
-        cx: &mut floem::context::ComputeLayoutCx,
+        _cx: &mut floem::context::ComputeLayoutCx,
     ) -> Option<Rect> {
         // let viewport = cx.current_viewport();
         // self.editor.doc().lines.update(|x| {
@@ -161,9 +157,9 @@ impl View for EditorView {
 
     fn paint(&mut self, cx: &mut PaintCx) {
         self.repaint.track();
-        let (viewport, line_height, lines, position_of_cursor, selections) = self
+        let (line_height, lines, position_of_cursor, selections) = self
             .doc
-            .with_untracked(|x| (x.viewport, x.line_height, x.visual_line.clone(), x.position_of_cursor(), x.select_of_cursor()));
+            .with_untracked(|x| (x.line_height, x.visual_line.clone(), x.position_of_cursor(), x.select_of_cursor()));
         info!("paint lines={} cursor rect = {:?}", lines.len(), position_of_cursor);
         match selections {
             Ok(rects) => {
@@ -187,7 +183,7 @@ impl View for EditorView {
         for line_info in lines {
             let y = line_info.line_index as f64 * line_height;
             let text_layout = line_info.text_layout;
-            paint_extra_style(cx, &text_layout.extra_style, y, viewport);
+            paint_extra_style(cx, &text_layout.hyperlinks);
             cx.draw_text_with_layout(text_layout.text.layout_runs(), Point::new(0.0, y));
         }
         // paint select
@@ -197,52 +193,14 @@ impl View for EditorView {
 
 pub fn paint_extra_style(
     cx: &mut PaintCx,
-    extra_styles: &[LineExtraStyle],
-    y: f64,
-    viewport: Rect,
+    extra_styles: &[(Point, Point)],
 ) {
-    for style in extra_styles {
-        let height = style.height - 2.0;
-        if let Some(bg) = style.bg_color {
-            let width = style.width.unwrap_or_else(|| viewport.width()) - 2.0;
-            let base = if style.width.is_none() {
-                viewport.x0
-            } else {
-                0.0
-            };
-            let x = style.x + base + 1.0;
-            let y = y + style.y + 1.0;
-
-            cx.fill(
-                &Rect::ZERO
-                    .with_size(Size::new(width, height))
-                    .with_origin(Point::new(x, y)).to_rounded_rect(2.0),
-                bg,
-                0.0,
-            );
-        }
-
-        if let Some(color) = style.under_line {
-            let width = style.width.unwrap_or_else(|| viewport.width());
-            let base = if style.width.is_none() {
-                viewport.x0
-            } else {
-                0.0
-            };
-            let x = style.x + base;
-            let y = y + style.y + height;
-            cx.stroke(
-                &Line::new(Point::new(x, y), Point::new(x + width, y)),
-                color,
-                &Stroke::new(1.0),
-            );
-        }
-
-        if let Some(color) = style.wave_line {
-            let width = style.width.unwrap_or_else(|| viewport.width());
-            let y = y + style.y + height;
-            paint_wave_line(cx, width, Point::new(style.x, y), color);
-        }
+    for (start, end) in extra_styles {
+        cx.stroke(
+            &Line::new(*start, *end),
+            Color::RED,
+            &Stroke::new(0.5),
+        );
     }
 }
 
