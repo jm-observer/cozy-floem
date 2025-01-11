@@ -1,5 +1,5 @@
 [package]
-name = "rust-detail-panel"
+name = "readonly-panel"
 version = "0.1.0"
 edition = "2021"
 

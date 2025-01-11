@@ -1,23 +1,45 @@
-use floem::keyboard::{Key, NamedKey};
-use floem::prelude::*;
-use floem::style::{AlignItems, JustifyContent, StyleValue};
-use floem::views::container;
+use floem::{
+    keyboard::{Key, NamedKey},
+    prelude::*,
+    style::{AlignItems, JustifyContent, StyleValue},
+    views::container
+};
 
 fn app_view() -> impl IntoView {
     // Color::rgba8(0, 0, 0, 120)
     let view = v_stack((
-        container(label("{", None, Some(Color::parse("#C5E1C5").unwrap()))).style(|x| x.width(10.0))
-        , container(label("{", Some(Color::parse("#C5E1C5").unwrap()), None)).style(|x| x.width(10.0))
-        , container(label("{", Some(Color::parse("#98FB98").unwrap()), None)).style(|x| x.width(10.0))
-        , container(label("{", None, Some(Color::parse("#B7E1CD").unwrap())).style(|x| x.width(10.0))).style(|x| x.width(10.0))
-        , container(label("    println!(\"abc\")", None, None)).style(|x| x.width(100.0))
+        container(label(
+            "{",
+            None,
+            Some(Color::parse("#C5E1C5").unwrap())
+        ))
+        .style(|x| x.width(10.0)),
+        container(label(
+            "{",
+            Some(Color::parse("#C5E1C5").unwrap()),
+            None
+        ))
+        .style(|x| x.width(10.0)),
+        container(label(
+            "{",
+            Some(Color::parse("#98FB98").unwrap()),
+            None
+        ))
+        .style(|x| x.width(10.0)),
+        container(
+            label("{", None, Some(Color::parse("#B7E1CD").unwrap()))
+                .style(|x| x.width(10.0))
+        )
+        .style(|x| x.width(10.0)),
+        container(label("    println!(\"abc\")", None, None))
+            .style(|x| x.width(100.0))
     ));
 
     let id = view.id();
     view.on_key_up(
         Key::Named(NamedKey::F11),
         |m| m.is_empty(),
-        move |_| id.inspect(),
+        move |_| id.inspect()
     )
 }
 
@@ -25,13 +47,19 @@ fn main() {
     floem::launch(app_view);
 }
 
-fn label(text: &str, color: Option<Color>, bg_color: Option<Color>) -> impl View {
+fn label(
+    text: &str,
+    color: Option<Color>,
+    bg_color: Option<Color>
+) -> impl View {
     static_label(text).style(move |style| {
         let style = style
             .height(23.0)
             .font_size(13.0)
             .padding_horiz(4.0)
-            .font_family(StyleValue::Val("JetBrains Mono".to_string()))
+            .font_family(StyleValue::Val(
+                "JetBrains Mono".to_string()
+            ))
             .align_items(AlignItems::Center)
             .justify_content(JustifyContent::FlexEnd);
         let style = if let Some(color) = color {

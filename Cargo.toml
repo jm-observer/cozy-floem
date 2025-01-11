@@ -1,5 +1,5 @@
 [workspace]
-members = ["folding-svg", "font-style", "rust-detail-panel"]
+members = ["folding-svg", "font-style", "readonly-panel"]
 resolver = "2"
 
 

@@ -2954,6 +2954,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "readonly-panel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "custom-utils",
+ "doc",
+ "floem",
+ "lapce-xi-rope 0.3.2 (git+https://github.com/jm-observer/xi-editor.git)",
+ "log",
+]
+
+[[package]]
 name = "rect_packer"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3077,18 +3089,6 @@ name = "roxmltree"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
-
-[[package]]
-name = "rust-detail-panel"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "custom-utils",
- "doc",
- "floem",
- "lapce-xi-rope 0.3.2 (git+https://github.com/jm-observer/xi-editor.git)",
- "log",
-]
 
 [[package]]
 name = "rustc-hash"
