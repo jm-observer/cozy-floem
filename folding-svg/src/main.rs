@@ -14,9 +14,7 @@ fn app_view() -> impl IntoView {
             s.size(size, size)
                 .color(Color::rgba8(0, 0, 0, 120))
                 .hover(|s| {
-                    s.cursor(CursorStyle::Pointer)
-                        .color(Color::BLACK)
-                        .into()
+                    s.cursor(CursorStyle::Pointer).color(Color::BLACK)
                 })
         })),
         container(svg(svg_str("folded")).style(move |s| {

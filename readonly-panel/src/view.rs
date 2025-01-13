@@ -6,9 +6,7 @@ use floem::{
     keyboard::Key,
     kurbo::{Line, Point, Rect, Stroke},
     peniko::Color,
-    prelude::{
-        Decorators, RwSignal, SignalUpdate, SignalWith
-    },
+    prelude::{Decorators, RwSignal, SignalUpdate, SignalWith},
     reactive::{SignalGet, Trigger, create_effect},
     style::{CursorStyle, Style},
     taffy::NodeId,
@@ -16,15 +14,13 @@ use floem::{
 };
 use log::error;
 
-pub fn panel(doc: RwSignal<SimpleDoc>) -> impl IntoView {
-    let id = ViewId::new();
-    let (hover_hyperlink, repaint) =
-        doc.with_untracked(|x| (x.hover_hyperlink, x.repaint));
+pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
+    let (hover_hyperlink, id) =
+        doc.with_untracked(|x| (x.hover_hyperlink, x.id));
     let view = EditorView {
         id,
         inner_node: None,
         doc,
-        repaint
     }
     .on_event_cont(EventListener::PointerDown, move |event| {
         if let Event::PointerDown(pointer_event) = event {
@@ -75,10 +71,6 @@ pub fn panel(doc: RwSignal<SimpleDoc>) -> impl IntoView {
             x.cursor(CursorStyle::Pointer)
         })
     });
-    create_effect(move |_| {
-        repaint.track();
-        id.request_paint();
-    });
     scroll(view)
         .on_scroll(move |viewport| {
             doc.update(|x| {
@@ -94,7 +86,6 @@ pub struct EditorView {
     pub id:         ViewId,
     pub inner_node: Option<NodeId>,
     pub doc:        RwSignal<SimpleDoc>,
-    pub repaint:    Trigger
 }
 
 impl View for EditorView {
@@ -159,24 +150,25 @@ impl View for EditorView {
     }
 
     fn paint(&mut self, cx: &mut PaintCx) {
-        self.repaint.track();
-        let (line_height, lines, position_of_cursor, selections) =
-            self.doc.with_untracked(|x| {
-                (
-                    x.line_height,
-                    x.visual_line.clone(),
-                    x.position_of_cursor(),
-                    x.select_of_cursor()
-                )
-            });
+        let (
+            line_height,
+            lines,
+            position_of_cursor,
+            selections,
+            style
+        ) = self.doc.with_untracked(|x| {
+            (
+                x.line_height,
+                x.visual_line.clone(),
+                x.position_of_cursor(),
+                x.select_of_cursor(),
+                x.style
+            )
+        });
         match selections {
             Ok(rects) => {
                 for rect in rects {
-                    cx.fill(
-                        &rect,
-                        &Color::parse("#C5E1C5").unwrap(),
-                        0.0
-                    );
+                    cx.fill(&rect, &style.selection_bg, 0.0);
                 }
             },
             Err(err) => {
@@ -185,12 +177,13 @@ impl View for EditorView {
         }
         // paint cursor
         match position_of_cursor {
-            Ok(rect) => {
+            Ok(Some(rect)) => {
                 cx.fill(&rect, &Color::BLACK, 0.0);
             },
             Err(err) => {
                 error!("{err:?}");
             }
+            Ok(None) => {}
         }
         for line_info in lines {
             let y = line_info.line_index as f64 * line_height;
@@ -207,13 +200,9 @@ impl View for EditorView {
 
 pub fn paint_extra_style(
     cx: &mut PaintCx,
-    extra_styles: &[(Point, Point)]
+    extra_styles: &[(Point, Point, Color)]
 ) {
-    for (start, end) in extra_styles {
-        cx.stroke(
-            &Line::new(*start, *end),
-            Color::RED,
-            &Stroke::new(0.5)
-        );
+    for (start, end, color) in extra_styles {
+        cx.stroke(&Line::new(*start, *end), color, &Stroke::new(0.5));
     }
 }
