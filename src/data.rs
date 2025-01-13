@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use doc::{
     hit_position_aff,
-    lines::{layout::*, line_ending::LineEnding, word::WordCursor}
+    lines::{layout::*, line_ending::LineEnding, word::WordCursor},
 };
 use floem::{
     Clipboard, ViewId,
@@ -10,37 +10,45 @@ use floem::{
     pointer::{PointerInputEvent, PointerMoveEvent},
     prelude::{SignalGet, SignalUpdate},
     reactive::RwSignal,
-    text::{AttrsList, FONT_SYSTEM}
+    text::{AttrsList, FONT_SYSTEM},
 };
 use lapce_xi_rope::Rope;
 use log::{error, info};
 use std::cmp::Ordering;
+use floem::kurbo::Size;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Position {
     Region { start: usize, end: usize },
-    Caret(usize)
+    Caret(usize),
+    None,
 }
 
 #[derive(Clone, Debug)]
 pub struct Cursor {
-    dragging:     bool,
-    pub position: Position
+    dragging: bool,
+    pub position: Position,
 }
 
 impl Cursor {
-    pub fn offset(&self) -> usize {
-        match self.position {
+    pub fn offset(&self) -> Option<usize> {
+        Some(match self.position {
             Position::Region { end, .. } => end,
-            Position::Caret(offset) => offset
-        }
+            Position::Caret(offset) => offset,
+            Position::None => {
+                return None
+            }
+        })
     }
 
-    pub fn start(&self) -> usize {
-        match self.position {
+    pub fn start(&self) -> Option<usize> {
+        Some(match self.position {
             Position::Region { start, .. } => start,
-            Position::Caret(offset) => offset
-        }
+            Position::Caret(offset) => offset,
+            Position::None => {
+                return None
+            }
+        })
     }
 
     pub fn region(&self) -> Option<(usize, usize)> {
@@ -58,7 +66,7 @@ impl Cursor {
 
 #[derive(Copy, Clone, Debug)]
 pub struct DocStyle {
-    pub selection_bg: Color
+    pub selection_bg: Color,
 }
 
 impl Default for DocStyle {
@@ -70,23 +78,24 @@ impl Default for DocStyle {
 }
 
 pub struct SimpleDoc {
-    pub id:                ViewId,
-    pub rope:              Rope,
-    pub visual_line:       Vec<VisualLine>,
-    pub line_ending:       LineEnding,
-    pub viewport:          Rect,
-    pub line_height:       f64,
-    pub cursor:            Cursor,
+    pub id: ViewId,
+    pub rope: Rope,
+    pub visual_line: Vec<VisualLine>,
+    pub line_ending: LineEnding,
+    pub viewport: Rect,
+    pub line_height: f64,
+    pub cursor: Cursor,
     pub hyperlink_regions: Vec<(Rect, Hyperlink)>,
-    pub hover_hyperlink:   RwSignal<Option<usize>>,
-    pub style:             DocStyle
+    pub hover_hyperlink: RwSignal<Option<usize>>,
+    pub style: DocStyle,
+    pub auto_scroll: bool,
 }
 
 impl SimpleDoc {
     pub fn new(
         id: ViewId,
         line_ending: LineEnding,
-        hover_hyperlink: RwSignal<Option<usize>>
+        hover_hyperlink: RwSignal<Option<usize>>,
     ) -> Self {
         Self {
             id,
@@ -97,17 +106,18 @@ impl SimpleDoc {
             line_height: 23.0,
             cursor: Cursor {
                 dragging: false,
-                position: Position::Caret(0)
+                position: Position::None,
             },
             hyperlink_regions: vec![],
             hover_hyperlink,
-            style: Default::default()
+            style: Default::default(),
+            auto_scroll: true,
         }
     }
 
     pub fn pointer_down(
         &mut self,
-        event: PointerInputEvent
+        event: PointerInputEvent,
     ) -> Result<()> {
         match event.count {
             1 => {
@@ -125,24 +135,24 @@ impl SimpleDoc {
                 self.cursor.dragging = true;
                 if event.modifiers.shift() {
                     self.cursor.position = Position::Region {
-                        start: self.cursor.start(),
-                        end:   offset
+                        start: self.cursor.start().unwrap_or(offset),
+                        end: offset,
                     };
                 } else {
                     self.cursor.position = Position::Caret(offset);
                 }
                 self.id.request_paint();
-            },
+            }
             2 => {
                 let offset = self.offset_of_pos(event.pos)?.0;
                 let (start_code, end_code) =
                     WordCursor::new(&self.rope, offset).select_word();
                 self.cursor.position = Position::Region {
                     start: start_code,
-                    end:   end_code
+                    end: end_code,
                 };
                 self.id.request_paint();
-            },
+            }
             _ => {
                 let line = self.offset_of_pos(event.pos)?.1;
                 let offset = self.rope.offset_of_line(line)?;
@@ -150,7 +160,7 @@ impl SimpleDoc {
                     self.rope.offset_of_line(line + 1)?;
                 self.cursor.position = Position::Region {
                     start: offset,
-                    end:   next_line_offset
+                    end: next_line_offset,
                 };
                 self.id.request_paint();
             }
@@ -160,7 +170,7 @@ impl SimpleDoc {
 
     pub fn pointer_move(
         &mut self,
-        event: PointerMoveEvent
+        event: PointerMoveEvent,
     ) -> Result<()> {
         if let Some(x) =
             self.hyperlink_regions.iter().enumerate().find_map(
@@ -182,8 +192,8 @@ impl SimpleDoc {
         if self.cursor.dragging {
             let offset = self.offset_of_pos(event.pos)?.0;
             self.cursor.position = Position::Region {
-                start: self.cursor.start(),
-                end:   offset
+                start: self.cursor.start().unwrap_or(offset),
+                end: offset,
             };
             self.id.request_paint();
         }
@@ -192,7 +202,7 @@ impl SimpleDoc {
 
     pub fn pointer_up(
         &mut self,
-        _event: PointerInputEvent
+        _event: PointerInputEvent,
     ) -> Result<()> {
         self.cursor.dragging = false;
         Ok(())
@@ -209,21 +219,23 @@ impl SimpleDoc {
     }
 
     pub fn position_of_cursor(&self) -> Result<Option<Rect>> {
-        let offset = self.cursor.offset();
+        let Some(offset) = self.cursor.offset() else {
+            return Ok(None)
+        };
         let Some((point, _line, _)) = self.point_of_offset(offset)?
         else {
             return Ok(None);
         };
         let rect = Rect::from_origin_size(
             (point.x - 1.0, point.y),
-            (2.0, self.line_height)
+            (2.0, self.line_height),
         );
         Ok(Some(rect))
     }
 
     fn point_of_offset(
         &self,
-        offset: usize
+        offset: usize,
     ) -> Result<Option<(Point, usize, usize)>> {
         if self.rope.is_empty() {
             return Ok(None);
@@ -270,19 +282,19 @@ impl SimpleDoc {
             let viewport_width = self.viewport.width();
             rects.push(Rect::from_origin_size(
                 start_point,
-                (viewport_width, self.line_height)
+                (viewport_width, self.line_height),
             ));
             start_line += 1;
             while start_line < end_line {
                 rects.push(Rect::from_origin_size(
                     Point::new(0.0, self.height_of_line(start_line)),
-                    (viewport_width, self.line_height)
+                    (viewport_width, self.line_height),
                 ));
                 start_line += 1;
             }
             rects.push(Rect::from_points(
                 Point::new(0.0, self.height_of_line(start_line)),
-                end_point
+                end_point,
             ));
             Ok(rects)
         }
@@ -294,7 +306,7 @@ impl SimpleDoc {
             content,
             attrs_list,
             hyperlink
-        }: Line
+        }: Line,
     ) {
         let len = self.rope.len();
         if len > 0 {
@@ -308,7 +320,7 @@ impl SimpleDoc {
             line_index,
             content,
             attrs_list,
-            &mut font_system
+            &mut font_system,
         );
         let points: Vec<(f64, f64, Hyperlink)> = hyperlink
             .into_iter()
@@ -336,19 +348,25 @@ impl SimpleDoc {
             .collect();
         self.visual_line.push(VisualLine {
             line_index,
-            text_layout: TextLayoutLine { text, hyperlinks }
+            text_layout: TextLayoutLine { text, hyperlinks },
         });
         self.hyperlink_regions.append(&mut hyperlink_region);
         self.id.request_layout();
         self.id.request_paint();
+        if self.auto_scroll {
+            self.id.scroll_to(Some(
+                Rect::from_origin_size(
+                    Point::new(self.viewport.x0, self.height_of_line(line_index))
+                    , Size::new(self.line_height, self.line_height))));
+        }
     }
 
     /// return (offset_of_buffer, line)
     pub fn offset_of_pos(
         &self,
-        point: Point
+        point: Point,
     ) -> Result<(usize, usize)> {
-        let line = (point.y / self.line_height) as usize;
+        let line = ((point.y / self.line_height) as usize).min(self.visual_line.len() - 1);
         let text_layout = &self
             .visual_line
             .get(line)
@@ -358,30 +376,60 @@ impl SimpleDoc {
             text_layout.text.hit_point(Point::new(point.x, 0.0));
         Ok((self.rope.offset_of_line(line)? + hit_point.index, line))
     }
+
+    pub fn view_size(&self) -> Size {
+        let viewport_size = self.viewport.size();
+        let height = (self.visual_line.len() as f64 * self.line_height + self.viewport.size().height / 4.0).max(viewport_size.height);
+        let max_width = self.viewport_lines().iter().fold(0., |x, line| {
+            let width = line.text_layout.text.size().width;
+            if x < width {
+                width
+            } else {
+                x
+            }
+        }).max(self.viewport.size().width);
+        Size::new(max_width, height)
+    }
+    pub fn viewport_lines(&self) -> &[VisualLine] {
+        let len = self.visual_line.len().max(1) - 1;
+        let min_line = ((self.viewport.y0 / self.line_height).floor() as usize).min(len);
+        let max_line = ((self.viewport.y1 / self.line_height).round() as usize).min(self.visual_line.len());
+        &self.visual_line[min_line..max_line]
+    }
+
+    pub fn update_viewport_by_scroll(&mut self, viewport: Rect) {
+        let viewport_size = viewport.size();
+        // viewport_size.height -= self.line_height / 0.5;
+        // viewport_size.width -= self.line_height * 1.5;
+        self.viewport = viewport.with_size(viewport_size);
+        // info!("update_viewport_by_scroll {:?} {:?}", viewport.size(), self.viewport.size());
+        self.id.request_layout();
+    }
 }
 
 #[derive(Clone)]
 pub struct VisualLine {
-    pub line_index:  usize,
-    pub text_layout: TextLayoutLine
+    pub line_index: usize,
+    pub text_layout: TextLayoutLine,
 }
+
 #[derive(Clone)]
 pub struct Hyperlink {
     pub start_offset: usize,
-    pub end_offset:   usize,
-    pub link:         String,
-    pub line_color:   Color
+    pub end_offset: usize,
+    pub link: String,
+    pub line_color: Color,
 }
 
 #[derive(Clone)]
 pub struct TextLayoutLine {
     pub hyperlinks: Vec<(Point, Point, Color)>,
-    pub text:       TextLayout
+    pub text: TextLayout,
 }
 
 #[derive(Clone)]
 pub struct Line {
-    pub content:    String,
+    pub content: String,
     pub attrs_list: AttrsList,
-    pub hyperlink:  Vec<Hyperlink>
+    pub hyperlink: Vec<Hyperlink>,
 }

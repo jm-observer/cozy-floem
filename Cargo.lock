@@ -1027,7 +1027,6 @@ dependencies = [
 [[package]]
 name = "doc"
 version = "0.1.0"
-source = "git+https://github.com/jm-observer/doc.git#21309bb1ea8ea59d0cb09d8dce63fcbeb1dffab3"
 dependencies = [
  "ahash",
  "anyhow",

@@ -30,3 +30,6 @@ anyhow = {workspace = true}
 [dev-dependencies]
 custom-utils = {workspace = true}
 rust-resolve = { path = "libs/rust-resolve"}
+
+[patch."https://github.com/jm-observer/doc.git"]
+doc = {path = "../doc"}
