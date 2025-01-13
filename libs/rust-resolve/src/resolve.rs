@@ -1,40 +1,58 @@
+use crate::{ExtChannel, PanelStyle};
 use cargo_metadata::{CompilerMessage, diagnostic::DiagnosticLevel};
+use cozy_floem::data::{Hyperlink, Line};
 use floem::{
     prelude::Color,
     text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight}
 };
-use readonly_panel::data::{Hyperlink, Line};
 use std::ops::Range;
-use crate::{ExtChannel, PanelStyle};
 
-pub fn resolve_compiler_message<'a>(msg: &'a CompilerMessage, style: &PanelStyle, ext_channel: &mut ExtChannel<Line>) {
+pub fn resolve_compiler_message<'a>(
+    msg: &'a CompilerMessage,
+    style: &PanelStyle,
+    ext_channel: &mut ExtChannel<Line>
+) {
     let mut lines = msg.message.message.lines();
     let family = style.font_family();
 
-    let Some(title) = lines.next() else {
-        return
-    };
-    let rs = resolve_title(title, &msg, style.font_size(), &family, style.line_height());
+    let Some(title) = lines.next() else { return };
+    let rs = resolve_title(
+        title,
+        &msg,
+        style.font_size(),
+        &family,
+        style.line_height()
+    );
     ext_channel.send(Line {
-        content: title.to_string(),
+        content:    title.to_string(),
         attrs_list: rs.1,
-        hyperlink: rs.0,
+        hyperlink:  rs.0
     });
-    let Some(path) = lines.next() else {
-        return
-    };
-    let rs = resolve_path(path, style.font_size(), &family, style.line_height());
+    let Some(path) = lines.next() else { return };
+    let rs = resolve_path(
+        path,
+        style.font_size(),
+        &family,
+        style.line_height()
+    );
     ext_channel.send(Line {
-        content: path.to_string(),
+        content:    path.to_string(),
         attrs_list: rs.1,
-        hyperlink: rs.0,
+        hyperlink:  rs.0
     });
     while let Some(code) = lines.next() {
-        let attrs_list = resolve_detail(code, msg.message.level, style.font_size(), &family, style.line_height(), Color::RED);
+        let attrs_list = resolve_detail(
+            code,
+            msg.message.level,
+            style.font_size(),
+            &family,
+            style.line_height(),
+            Color::RED
+        );
         ext_channel.send(Line {
             content: code.to_string(),
             attrs_list,
-            hyperlink: vec![],
+            hyperlink: vec![]
         });
     }
 }

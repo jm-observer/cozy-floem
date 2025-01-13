@@ -1,12 +1,16 @@
-use doc::lines::line_ending::LineEnding;
-use floem::{IntoView, peniko::Color, prelude::create_rw_signal, text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight}, ViewId};
-use log::LevelFilter::Info;
-use readonly_panel::{
-    data::{Hyperlink, SimpleDoc},
+use cozy_floem::{
+    data::{Hyperlink, Line, SimpleDoc},
     view::panel
 };
+use doc::lines::line_ending::LineEnding;
+use floem::{
+    IntoView, ViewId,
+    peniko::Color,
+    prelude::create_rw_signal,
+    text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight}
+};
+use log::LevelFilter::Info;
 use std::borrow::Cow;
-use readonly_panel::data::Line;
 
 fn main() {
     let _ = custom_utils::logger::logger_feature(
@@ -21,7 +25,11 @@ fn main() {
 
 fn app_view() -> impl IntoView {
     let hover_hyperlink = create_rw_signal(None);
-    let mut doc = SimpleDoc::new(ViewId::new(), LineEnding::CrLf, hover_hyperlink);
+    let mut doc = SimpleDoc::new(
+        ViewId::new(),
+        LineEnding::CrLf,
+        hover_hyperlink
+    );
     for i in 0..30 {
         init_content(&mut doc, i);
     }
@@ -57,7 +65,7 @@ pub(crate) fn init_content(doc: &mut SimpleDoc, i: usize) {
             end_offset:   12,
             link:         "abc".to_string(),
             line_color:   Default::default()
-        }],
+        }]
     };
     doc.append_line(line);
 }

@@ -1,5 +1,5 @@
 [package]
-name = "resolve-build"
+name = "rust-resolve"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,10 +7,9 @@ edition = "2021"
 tokio = {workspace = true}
 serde_json = {workspace = true}
 cargo_metadata = {workspace = true}
-custom-utils = {workspace = true}
 log = {workspace = true}
 anyhow = {workspace = true}
 floem = {workspace = true}
-readonly-panel = {path = "../readonly-panel"}
+cozy-floem = {path = "../../" }
 parking_lot = {workspace = true}
 doc = {workspace = true}

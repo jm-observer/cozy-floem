@@ -1,13 +1,13 @@
 use crate::data::SimpleDoc;
 use floem::{
-    IntoView, Renderer, View, ViewId,
+    Renderer, View, ViewId,
     context::{PaintCx, StyleCx},
     event::{Event, EventListener},
     keyboard::Key,
     kurbo::{Line, Point, Rect, Stroke},
     peniko::Color,
     prelude::{Decorators, RwSignal, SignalUpdate, SignalWith},
-    reactive::{SignalGet, Trigger, create_effect},
+    reactive::SignalGet,
     style::{CursorStyle, Style},
     taffy::NodeId,
     views::scroll
@@ -20,7 +20,7 @@ pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
     let view = EditorView {
         id,
         inner_node: None,
-        doc,
+        doc
     }
     .on_event_cont(EventListener::PointerDown, move |event| {
         if let Event::PointerDown(pointer_event) = event {
@@ -85,7 +85,7 @@ pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
 pub struct EditorView {
     pub id:         ViewId,
     pub inner_node: Option<NodeId>,
-    pub doc:        RwSignal<SimpleDoc>,
+    pub doc:        RwSignal<SimpleDoc>
 }
 
 impl View for EditorView {
@@ -168,7 +168,7 @@ impl View for EditorView {
         match selections {
             Ok(rects) => {
                 for rect in rects {
-                    cx.fill(&rect, &style.selection_bg, 0.0);
+                    cx.fill(&rect, style.selection_bg, 0.0);
                 }
             },
             Err(err) => {
@@ -178,11 +178,11 @@ impl View for EditorView {
         // paint cursor
         match position_of_cursor {
             Ok(Some(rect)) => {
-                cx.fill(&rect, &Color::BLACK, 0.0);
+                cx.fill(&rect, Color::BLACK, 0.0);
             },
             Err(err) => {
                 error!("{err:?}");
-            }
+            },
             Ok(None) => {}
         }
         for line_info in lines {

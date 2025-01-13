@@ -1,35 +1,40 @@
-use std::collections::VecDeque;
-use std::sync::{Arc};
-use std::thread;
-use std::time::Duration;
+use cozy_floem::{
+    data::{Line, SimpleDoc},
+    view::panel
+};
 use doc::lines::line_ending::LineEnding;
-use floem::ext_event::{create_ext_action, ExtSendTrigger, register_ext_trigger};
-use floem::{IntoView, View, ViewId};
-use floem::keyboard::{Key, NamedKey};
-use floem::prelude::{create_rw_signal, Decorators, RwSignal, SignalGet, SignalUpdate};
-use floem::reactive::{create_effect, ReadSignal, Scope, with_scope};
-use log::{error, info};
-use log::LevelFilter::Info;
-use parking_lot::Mutex;
-use resolve_build::{create_signal_from_channel, ExtChannel, PanelStyle, run};
-use tokio::process::Command;
-use readonly_panel::data::{Line, SimpleDoc};
-use readonly_panel::view::panel;
+use floem::{
+    View, ViewId,
+    keyboard::{Key, NamedKey},
+    prelude::{
+        Decorators, RwSignal, SignalGet, SignalUpdate,
+        create_rw_signal
+    },
+    reactive::Scope
+};
+use log::{LevelFilter::Info, info};
+use rust_resolve::{PanelStyle, create_signal_from_channel, run};
+use std::thread;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
         "panel",
         "error,resolve_build=debug",
         Info,
-        false,
+        false
     )
-        .build();
+    .build();
 
     let cx = Scope::new();
-    let (read_signal, channel, send) = create_signal_from_channel::<Line>(cx);
+    let (read_signal, channel, send) =
+        create_signal_from_channel::<Line>(cx);
 
     let hover_hyperlink = create_rw_signal(None);
-    let mut doc = SimpleDoc::new(ViewId::new(), LineEnding::CrLf, hover_hyperlink);
+    let doc = SimpleDoc::new(
+        ViewId::new(),
+        LineEnding::CrLf,
+        hover_hyperlink
+    );
     let simple_doc = create_rw_signal(doc);
 
     cx.create_effect(move |_| {
@@ -41,8 +46,8 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    let style = PanelStyle::new(13.0, "JetBrains Mono".to_string(), 23.0,
-    );
+    let style =
+        PanelStyle::new(13.0, "JetBrains Mono".to_string(), 23.0);
     thread::spawn(|| {
         run(channel, style);
         send(())

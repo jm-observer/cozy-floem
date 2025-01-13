@@ -1,11 +1,11 @@
 [workspace]
-members = ["folding-svg", "font-style", "readonly-panel", "resolve-build"]
+members = [ ".", "libs/rust-resolve"]
 resolver = "2"
 
 
 [workspace.dependencies]
 log = "=0.4.22"
-custom-utils = "=0.10.17"
+custom-utils = { version = "=0.10.17", default-features = false, features = ["dev", "logger"] }
 floem = { git="https://github.com/jm-observer/floem.git", branch = "main-fork-2", features = ["editor", "serde", "default-image-formats", "rfd-async-std", "vger"], default-features = false }
 lapce-xi-rope = {git = "https://github.com/jm-observer/xi-editor.git", features = ["serde"]}
 doc = {git = "https://github.com/jm-observer/doc.git"}
@@ -14,3 +14,19 @@ serde_json = "1.0.135"
 tokio = { version = "1.43.0", features = ["io-std", "io-util", "macros", "rt", "sync", "process", "rt-multi-thread"] }
 cargo_metadata = "0.19.1"
 parking_lot = { version = "0.12.1" }
+
+[package]
+name = "cozy-floem"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+log = {workspace = true}
+floem = {workspace = true}
+lapce-xi-rope = {workspace = true}
+doc = {workspace = true}
+anyhow = {workspace = true}
+
+[dev-dependencies]
+custom-utils = {workspace = true}
+rust-resolve = { path = "libs/rust-resolve"}

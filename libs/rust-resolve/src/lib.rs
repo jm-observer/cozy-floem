@@ -1,26 +1,31 @@
 mod resolve;
 
-use std::collections::VecDeque;
-use std::sync::Arc;
+use crate::resolve::resolve_compiler_message;
 use anyhow::Result;
 use cargo_metadata::Message;
-use floem::ext_event::{create_ext_action, ExtSendTrigger, register_ext_trigger};
-use floem::prelude::{SignalGet, SignalUpdate};
-use floem::reactive::{ReadSignal, Scope, with_scope};
-use floem::text::{Attrs, AttrsList, FamilyOwned, FONT_SYSTEM, LineHeightValue, Weight};
+use cozy_floem::data::Line;
+use floem::{
+    ext_event::{
+        ExtSendTrigger, create_ext_action, register_ext_trigger
+    },
+    prelude::{SignalGet, SignalUpdate},
+    reactive::{ReadSignal, Scope, with_scope},
+    text::{
+        Attrs, AttrsList, FamilyOwned, LineHeightValue,
+    }
+};
 use log::error;
 use parking_lot::Mutex;
+use std::{collections::VecDeque, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
-    sync::mpsc,
+    sync::mpsc
 };
-use readonly_panel::data::Line;
-use crate::resolve::resolve_compiler_message;
 
 pub enum OutputLine {
     StdOut(String),
-    StdErr(String),
+    StdErr(String)
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -29,7 +34,10 @@ pub async fn run(channel: ExtChannel<Line>, style: PanelStyle) {
         error!("{:?}", err);
     }
 }
-async fn _run(channel: ExtChannel<Line>, style: PanelStyle) -> anyhow::Result<()> {
+async fn _run(
+    channel: ExtChannel<Line>,
+    style: PanelStyle
+) -> anyhow::Result<()> {
     let mut command = Command::new("cargo");
     command.args([
         "clean",
@@ -48,7 +56,11 @@ async fn _run(channel: ExtChannel<Line>, style: PanelStyle) -> anyhow::Result<()
     run_command(command, channel, style).await?;
     Ok(())
 }
-async fn run_command(mut command: Command, mut channel: ExtChannel<Line>, style: PanelStyle) -> Result<()> {
+async fn run_command(
+    mut command: Command,
+    mut channel: ExtChannel<Line>,
+    style: PanelStyle
+) -> Result<()> {
     // 启动子进程，并捕获 stdout 和 stderr
     let mut child = command
         .stdout(std::process::Stdio::piped())
@@ -100,25 +112,31 @@ async fn run_command(mut command: Command, mut channel: ExtChannel<Line>, style:
                 {
                     match parsed {
                         Message::CompilerMessage(msg) => {
-                            // log::debug!("Compiler Message: {}", line);
-                            // log::debug!("Compiler Message: {}", msg);
-                            resolve_compiler_message(&msg, &style, &mut channel);
-                        }
-                        Message::CompilerArtifact(artifact) => {
+                            // log::debug!("Compiler Message: {}",
+                            // line);
+                            // log::debug!("Compiler Message: {}",
+                            // msg);
+                            resolve_compiler_message(
+                                &msg,
+                                &style,
+                                &mut channel
+                            );
+                        },
+                        Message::CompilerArtifact(_script) => {
                             // log::debug!("Compiler Artifact: {:?}",
                             // artifact);
-                        }
-                        Message::BuildScriptExecuted(script) => {
+                        },
+                        Message::BuildScriptExecuted(_script) => {
                             // log::debug!("Build Script Executed:
                             // {:?}", script);
-                        }
-                        Message::BuildFinished(script) => {
+                        },
+                        Message::BuildFinished(_script) => {
                             // log::debug!("Build Finished: {:?}",
                             // script);
-                        }
-                        Message::TextLine(script) => {
+                        },
+                        Message::TextLine(_script) => {
                             // log::debug!("TextLine: {:?}", script);
-                        }
+                        },
                         val => {
                             log::debug!("??????????: {:?}", val);
                         }
@@ -126,13 +144,13 @@ async fn run_command(mut command: Command, mut channel: ExtChannel<Line>, style:
                 } else {
                     log::debug!("Non-JSON stdout: {}", line);
                 }
-            }
+            },
             OutputLine::StdErr(line) => {
                 // log::debug!("stderr: {}", line);
                 channel.send(Line {
-                    content: line,
+                    content:    line,
                     attrs_list: attr_list.clone(),
-                    hyperlink: vec![],
+                    hyperlink:  vec![]
                 });
             }
         }
@@ -142,8 +160,9 @@ async fn run_command(mut command: Command, mut channel: ExtChannel<Line>, style:
     Ok(())
 }
 
-
-pub fn create_signal_from_channel<T: Send+Clone + 'static>(cx: Scope) -> (ReadSignal<Option<T>>, ExtChannel<T>, impl FnOnce(())) {
+pub fn create_signal_from_channel<T: Send + Clone + 'static>(
+    cx: Scope
+) -> (ReadSignal<Option<T>>, ExtChannel<T>, impl FnOnce(())) {
     let trigger = with_scope(cx, ExtSendTrigger::new);
 
     let channel_closed = cx.create_rw_signal(false);
@@ -168,18 +187,15 @@ pub fn create_signal_from_channel<T: Send+Clone + 'static>(cx: Scope) -> (ReadSi
         channel_closed.set(true);
     });
 
-    (read, ExtChannel {
-        trigger,
-        data,
-    }, send)
+    (read, ExtChannel { trigger, data }, send)
 }
 
-pub struct ExtChannel<T: Send+Clone + 'static> {
+pub struct ExtChannel<T: Send + Clone + 'static> {
     trigger: ExtSendTrigger,
-    data: Arc<Mutex<VecDeque<T>>>,
+    data:    Arc<Mutex<VecDeque<T>>>
 }
 
-impl<T: Send+Clone + 'static> ExtChannel<T> {
+impl<T: Send + Clone + 'static> ExtChannel<T> {
     pub fn send(&mut self, event: T) {
         self.data.lock().push_back(event);
         register_ext_trigger(self.trigger);
@@ -187,27 +203,32 @@ impl<T: Send+Clone + 'static> ExtChannel<T> {
 }
 
 pub struct PanelStyle {
-    font_size: f32,
+    font_size:   f32,
     font_family: String,
     line_height: f32
 }
 
 impl PanelStyle {
-    pub fn new(font_size: f32,
-               font_family: String,
-               line_height: f32) -> Self {
+    pub fn new(
+        font_size: f32,
+        font_family: String,
+        line_height: f32
+    ) -> Self {
         Self {
             font_size,
             font_family,
-            line_height,
+            line_height
         }
     }
+
     pub fn font_size(&self) -> f32 {
         self.font_size
     }
+
     pub fn line_height(&self) -> f32 {
         self.line_height
     }
+
     pub fn font_family(&self) -> Vec<FamilyOwned> {
         FamilyOwned::parse_list(&self.font_family).collect()
     }

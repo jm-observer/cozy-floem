@@ -826,6 +826,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cozy-floem"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "custom-utils",
+ "doc",
+ "floem",
+ "lapce-xi-rope 0.3.2 (git+https://github.com/jm-observer/xi-editor.git)",
+ "log",
+ "rust-resolve",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1449,24 +1462,6 @@ name = "foldhash"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
-
-[[package]]
-name = "folding-svg"
-version = "0.1.0"
-dependencies = [
- "custom-utils",
- "floem",
- "log",
-]
-
-[[package]]
-name = "font-style"
-version = "0.1.0"
-dependencies = [
- "custom-utils",
- "floem",
- "log",
-]
 
 [[package]]
 name = "font-types"
@@ -3025,18 +3020,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "readonly-panel"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "custom-utils",
- "doc",
- "floem",
- "lapce-xi-rope 0.3.2 (git+https://github.com/jm-observer/xi-editor.git)",
- "log",
-]
-
-[[package]]
 name = "rect_packer"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3107,22 +3090,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
 
 [[package]]
-name = "resolve-build"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cargo_metadata",
- "custom-utils",
- "doc",
- "floem",
- "log",
- "parking_lot",
- "readonly-panel",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "resvg"
 version = "0.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3176,6 +3143,21 @@ name = "roxmltree"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
+
+[[package]]
+name = "rust-resolve"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cargo_metadata",
+ "cozy-floem",
+ "doc",
+ "floem",
+ "log",
+ "parking_lot",
+ "serde_json",
+ "tokio",
+]
 
 [[package]]
 name = "rustc-demangle"
