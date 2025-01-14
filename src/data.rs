@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use anyhow::{Result, anyhow};
 use doc::{
     hit_position_aff,
@@ -13,9 +14,12 @@ use floem::{
     text::{AttrsList, FONT_SYSTEM},
 };
 use lapce_xi_rope::Rope;
-use log::{error, info};
+use log::{debug, error, info};
 use std::cmp::Ordering;
+use std::ops::Range;
 use floem::kurbo::Size;
+use floem::style::FontFamily;
+use floem::text::{Attrs, FamilyOwned, LineHeightValue};
 
 #[derive(Copy, Clone, Debug)]
 pub enum Position {
@@ -64,15 +68,32 @@ impl Cursor {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct DocStyle {
+    pub font_family: String,
+    pub font_size: f32,
+    pub line_height: f32,
     pub selection_bg: Color,
+    pub fg_color: Color
+}
+
+impl DocStyle {
+    pub fn attrs<'a>(&self, family: &'a [FamilyOwned]) -> Attrs<'a> {
+        Attrs::new()
+            .family(&family)
+            .font_size(self.font_size)
+            .line_height(LineHeightValue::Px(self.line_height ))
+    }
 }
 
 impl Default for DocStyle {
     fn default() -> Self {
         Self {
-            selection_bg: Color::BLUE_VIOLET
+            font_family: "JetBrains Mono".to_string(),
+            font_size: 13.0,
+            line_height: 23.0,
+            selection_bg: Color::BLUE_VIOLET,
+            fg_color: Color::BLACK,
         }
     }
 }
@@ -336,7 +357,7 @@ impl SimpleDoc {
                 (
                     Point::new(*x0, y - 1.0),
                     Point::new(*x1, y - 1.0),
-                    link.line_color
+                    link.line_color.unwrap_or(self.style.fg_color)
                 )
             })
             .collect();
@@ -359,6 +380,84 @@ impl SimpleDoc {
                     Point::new(self.viewport.x0, self.height_of_line(line_index))
                     , Size::new(self.line_height, self.line_height))));
         }
+    }
+
+    pub fn append_lines<T: Styled>(
+        &mut self,
+        lines: T,
+    ) -> Result<()> {
+        let mut old_len = self.rope.len();
+        if old_len > 0 {
+            self.rope.edit(old_len..old_len, self.line_ending.get_chars());
+        }
+        self.rope.edit(self.rope.len()..self.rope.len(), lines.content());
+
+        let old_line = self.rope.line_of_offset(old_len);
+        let last_line = self.rope.line_of_offset(self.rope.len());
+        let family = Cow::Owned(
+            FamilyOwned::parse_list(&self.style.font_family).collect()
+        );
+        debug!("last_line={last_line} old_line={old_line} content={}", lines.content().len());
+        let mut delta = 0;
+        for line_index in old_line..last_line {
+            let start_offset = self.rope.offset_of_line(line_index)?;
+            let end_offset = self.rope.offset_of_line(line_index + 1)?;
+            let mut attrs_list = AttrsList::new(self.style.attrs(&family));
+            let rang = start_offset - old_len..end_offset - old_len;
+            let mut font_system = FONT_SYSTEM.lock();
+            let content = self.rope.slice_to_cow(start_offset..end_offset);
+            debug!("line_index={line_index} rang={rang:?} content={content}");
+            let hyperlink = lines.line_attrs(&mut attrs_list,self.style.attrs(&family), rang, delta);
+            let text = TextLayout::new_with_font_system(
+                line_index,
+                content,
+                attrs_list,
+                &mut font_system,
+            );
+            // let points: Vec<(f64, f64, Hyperlink)> = hyperlink
+            //     .into_iter()
+            //     .map(|x| {
+            //         let x0 = text.hit_position(x.start_offset).point.x;
+            //         let x1 = text.hit_position(x.end_offset).point.x;
+            //         (x0, x1, x)
+            //     })
+            //     .collect();
+            //
+            // let y = self.height_of_line(line_index) + self.line_height;
+            let hyperlinks: Vec<(Point, Point, Color)> = vec![];
+            // let hyperlinks: Vec<(Point, Point, Color)> = points
+            //     .iter()
+            //     .map(|(x0, x1, link)| {
+            //         (
+            //             Point::new(*x0, y - 1.0),
+            //             Point::new(*x1, y - 1.0),
+            //             link.line_color.unwrap_or(self.style.fg_color)
+            //         )
+            //     })
+            //     .collect();
+            // let mut hyperlink_region: Vec<(Rect, Hyperlink)> = points
+            //     .into_iter()
+            //     .map(|(x0, x1, data)| {
+            //         (Rect::new(x0, y - self.line_height, x1, y), data)
+            //     })
+            //     .collect();
+            self.visual_line.push(VisualLine {
+                line_index,
+                text_layout: TextLayoutLine { text, hyperlinks },
+            });
+            // self.hyperlink_regions.append(&mut hyperlink_region);
+            delta += end_offset - start_offset;
+        }
+
+        self.id.request_layout();
+        self.id.request_paint();
+        if self.auto_scroll {
+            self.id.scroll_to(Some(
+                Rect::from_origin_size(
+                    Point::new(self.viewport.x0, self.height_of_line(self.rope.line_of_offset(self.rope.len())))
+                    , Size::new(self.line_height, self.line_height))));
+        }
+        Ok(())
     }
 
     /// return (offset_of_buffer, line)
@@ -413,12 +512,12 @@ pub struct VisualLine {
     pub text_layout: TextLayoutLine,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Hyperlink {
     pub start_offset: usize,
     pub end_offset: usize,
     pub link: String,
-    pub line_color: Color,
+    pub line_color: Option<Color>,
 }
 
 #[derive(Clone)]
@@ -432,4 +531,24 @@ pub struct Line {
     pub content: String,
     pub attrs_list: AttrsList,
     pub hyperlink: Vec<Hyperlink>,
+}
+
+pub fn ranges_overlap(r1: &Range<usize>, r2: &Range<usize>) -> Option<Range<usize>> {
+    let overlap = if r2.start <= r1.start && r1.start < r2.end {
+        r1.start..r1.end.min(r2.end)
+    } else if r1.start <= r2.start && r2.start < r1.end {
+        r2.start..r2.end.min(r1.end)
+    } else {
+        return None;
+    };
+    if overlap.is_empty() {
+        None
+    } else {
+        Some(overlap)
+    }
+}
+
+pub trait Styled {
+    fn content(&self) -> &str;
+    fn line_attrs(&self, attrs: &mut AttrsList, default_attrs: Attrs, range: Range<usize>, delta: usize) -> Vec<Hyperlink>;
 }

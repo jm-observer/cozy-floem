@@ -12,7 +12,7 @@ use floem::{
     taffy::NodeId,
     views::scroll,
 };
-use log::{error, info};
+use log::{debug, error};
 
 pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
     let (hover_hyperlink, id) =
@@ -162,7 +162,7 @@ impl View for EditorView {
                 x.viewport_lines().iter().map(|x| x.clone()).collect::<Vec<VisualLine>>(),
                 x.position_of_cursor(),
                 x.select_of_cursor(),
-                x.style
+                x.style.clone()
             )
         });
         match selections {
@@ -194,8 +194,8 @@ impl View for EditorView {
         for line_info in lines {
             let y = line_info.line_index as f64 * line_height;
             let text_layout = line_info.text_layout;
+            debug!("line_index={} y={y} ", line_info.line_index);
             paint_extra_style(cx, &text_layout.hyperlinks);
-            // cx.clip(&viewport);
             cx.draw_text_with_layout(
                 text_layout.text.layout_runs(),
                 Point::new(0.0, y),

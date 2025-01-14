@@ -7,16 +7,18 @@ use floem::{
 
 fn app_view() -> impl IntoView {
     // Color::rgba8(0, 0, 0, 120)
+    // (0, 255, 0),
+    // (0, 0, 255)
     let view = v_stack((
         container(label(
-            "{",
+            "-->",
             None,
-            Some(Color::parse("#C5E1C5").unwrap())
+            Some(Color::rgb8(0, 255, 255))
         ))
         .style(|x| x.width(10.0)),
         container(label(
             "{",
-            Some(Color::parse("#C5E1C5").unwrap()),
+            Some(Color::rgb(0., 0., 255.)),
             None
         ))
         .style(|x| x.width(10.0)),

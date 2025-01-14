@@ -19,9 +19,7 @@ pub fn resolve_compiler_message<'a>(
     let rs = resolve_title(
         title,
         &msg,
-        style.font_size(),
-        &family,
-        style.line_height()
+        &family, style
     );
     ext_channel.send(Line {
         content:    title.to_string(),
@@ -31,9 +29,7 @@ pub fn resolve_compiler_message<'a>(
     let Some(path) = lines.next() else { return };
     let rs = resolve_path(
         path,
-        style.font_size(),
-        &family,
-        style.line_height()
+        &family, style
     );
     ext_channel.send(Line {
         content:    path.to_string(),
@@ -44,10 +40,7 @@ pub fn resolve_compiler_message<'a>(
         let attrs_list = resolve_detail(
             code,
             msg.message.level,
-            style.font_size(),
-            &family,
-            style.line_height(),
-            Color::RED
+            &family, style
         );
         ext_channel.send(Line {
             content: code.to_string(),
@@ -60,35 +53,32 @@ pub fn resolve_compiler_message<'a>(
 fn resolve_detail(
     msg: &str,
     diagnostic_level: DiagnosticLevel,
-    font_size: f32,
-    family: &[FamilyOwned],
-    line_height: f32,
-    split_color: Color
+    family: &[FamilyOwned], style: &PanelStyle
 ) -> AttrsList {
     let head = resolve_detail_head(msg);
     let attrs = Attrs::new()
         .family(family)
-        .font_size(font_size)
-        .line_height(LineHeightValue::Px(line_height));
+        .font_size(style.font_size)
+        .line_height(LineHeightValue::Px(style.line_height));
     let mut attr_list = AttrsList::new(attrs);
     match head {
         Head::CodeMsg { split_index } => {
-            let attrs = Attrs::new().color(split_color);
+            let attrs = Attrs::new().color(style.code_relative);
             attr_list.add_span(0..split_index, attrs);
             let attrs = Attrs::new()
-                .color(level_color(diagnostic_level))
+                .color(level_color(diagnostic_level, style))
                 .weight(Weight::BOLD);
             attr_list.add_span(split_index..msg.len(), attrs);
         },
         Head::Code { split_index } => {
-            let attrs = Attrs::new().color(split_color);
+            let attrs = Attrs::new().color(style.code_relative);
             attr_list.add_span(0..split_index, attrs);
         },
         Head::Note {
             split_index,
             note_range
         } => {
-            let attrs = Attrs::new().color(split_color);
+            let attrs = Attrs::new().color(style.code_relative);
             attr_list.add_span(0..split_index, attrs);
             let attrs = Attrs::new().weight(Weight::BOLD);
             attr_list.add_span(note_range, attrs);
@@ -100,30 +90,28 @@ fn resolve_detail(
 
 fn resolve_path(
     msg: &str,
-    font_size: f32,
-    family: &[FamilyOwned],
-    line_height: f32
+    family: &[FamilyOwned], style: &PanelStyle
 ) -> (Vec<Hyperlink>, AttrsList) {
     let mut links = Vec::new();
     let attrs = Attrs::new()
         .family(family)
-        .font_size(font_size)
-        .line_height(LineHeightValue::Px(line_height));
+        .font_size(style.font_size)
+        .line_height(LineHeightValue::Px(style.line_height));
     let mut attr_list = AttrsList::new(attrs);
     let arrow = "-->";
     if let Some(range) = msg.find(arrow).map(|x| x..x + arrow.len()) {
         if let Some(index) =
             first_non_whitespace_index(&msg[range.end..])
         {
-            links.push(Hyperlink {
-                start_offset: range.end + index,
-                end_offset:   msg.len(),
-                // todo
-                link:         "".to_string(),
-                line_color:   Color::RED
-            });
+            // links.push(Hyperlink {
+            //     start_offset: range.end + index,
+            //     end_offset:   msg.len(),
+            //     // todo
+            //     link:         "".to_string(),
+            //     line_color:   style.hyperlink_color
+            // });
         }
-        add_arrow_attrs(Color::BLUE, &mut attr_list, range);
+        add_arrow_attrs(style.code_relative, &mut attr_list, range);
     }
     (links, attr_list)
 }
@@ -131,16 +119,14 @@ fn resolve_path(
 fn resolve_title(
     msg: &str,
     compiler_message: &CompilerMessage,
-    font_size: f32,
-    family: &[FamilyOwned],
-    line_height: f32
+    family: &[FamilyOwned], style: &PanelStyle
 ) -> (Vec<Hyperlink>, AttrsList) {
     let mut links = Vec::new();
     let attrs = Attrs::new()
         .family(family)
-        .font_size(font_size)
+        .font_size(style.font_size)
         .weight(Weight::BOLD)
-        .line_height(LineHeightValue::Px(line_height));
+        .line_height(LineHeightValue::Px(style.line_height));
     let mut attr_list = AttrsList::new(attrs);
     // add level style
     if let Some(level_str) = level_str(compiler_message.message.level)
@@ -152,9 +138,7 @@ fn resolve_title(
                 compiler_message.message.level,
                 &mut attr_list,
                 range,
-                font_size,
-                family,
-                line_height
+                family, style
             );
         }
     }
@@ -164,22 +148,20 @@ fn resolve_title(
     {
         if let Some(range) = msg.find(code).map(|x| x..x + code.len())
         {
-            links.push(Hyperlink {
-                start_offset: range.start,
-                end_offset:   range.end,
-                // todo
-                link:         "".to_string(),
-                line_color:   level_color(
-                    compiler_message.message.level
-                )
-            });
+            // links.push(Hyperlink {
+            //     start_offset: range.start,
+            //     end_offset:   range.end,
+            //     // todo
+            //     link:         "".to_string(),
+            //     line_color:   level_color(
+            //         compiler_message.message.level, style
+            //     )
+            // });
             add_level_attrs(
                 compiler_message.message.level,
                 &mut attr_list,
                 range,
-                font_size,
-                family,
-                line_height
+                family, style
             );
         }
     }
@@ -237,16 +219,14 @@ fn add_level_attrs(
     diagnostic_level: DiagnosticLevel,
     attr_list: &mut AttrsList,
     range: Range<usize>,
-    font_size: f32,
-    family: &[FamilyOwned],
-    line_height: f32
+    family: &[FamilyOwned], style: &PanelStyle
 ) {
     let attrs = Attrs::new()
-        .color(level_color(diagnostic_level))
+        .color(level_color(diagnostic_level, style))
         .family(family)
-        .font_size(font_size)
+        .font_size(style.font_size)
         // .weight(Weight::BOLD)
-        .line_height(LineHeightValue::Px(line_height));
+        .line_height(LineHeightValue::Px(style.line_height));
     attr_list.add_span(range, attrs);
 }
 
@@ -262,12 +242,11 @@ fn find_num_index(s: &str) -> bool {
 }
 
 #[inline]
-fn level_color(level: DiagnosticLevel) -> Color {
+fn level_color(level: DiagnosticLevel, style: &PanelStyle) -> Color {
     match level {
-        DiagnosticLevel::Ice => Color::RED,
-        DiagnosticLevel::Error => Color::RED,
-        DiagnosticLevel::Warning => Color::YELLOW,
-        _ => Color::YELLOW
+        DiagnosticLevel::Ice |
+        DiagnosticLevel::Error => style.error_color,
+        _ => style.warn_color
     }
 }
 

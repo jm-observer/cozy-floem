@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::ops::Range;
 use std::ptr::NonNull;
+use log::warn;
 use peniko::Color;
 use vte::{Params, Parser, Perform};
 
@@ -11,13 +13,12 @@ pub struct StyledText {
 
 #[derive(Debug, Default, Clone)]
 pub struct TextStyle {
-    start: usize,
-    end: usize,
-    bold: bool,
-    italic: bool,
-    underline: bool,
-    bg_color: Option<Color>,
-    fg_color: Option<Color>
+    pub range: Range<usize>,
+    pub bold: bool,
+    pub italic: bool,
+    pub underline: bool,
+    pub bg_color: Option<Color>,
+    pub fg_color: Option<Color>
 }
 
 enum StyleState {
@@ -49,7 +50,7 @@ impl StyleState {
             } => {
                 Self::Ref {
                     start: offset,
-                    end: offset,
+                    end: offset + 1,
                     bold: *bold,
                     italic: *italic,
                     underline: *underline,
@@ -58,7 +59,7 @@ impl StyleState {
                 }
             }
             StyleState::Ref { end, .. } => {
-                *end = offset;
+                *end = offset + 1;
                 return;
             }
         };
@@ -102,8 +103,7 @@ impl StyleState {
             }
             StyleState::Ref { start, end, bold, italic, underline, bg_color, fg_color } => {
                 let style = TextStyle {
-                    start: *start,
-                    end: *end,
+                    range: *start..*end,
                     bold: *bold,
                     italic: *italic,
                     underline: *underline,
@@ -147,8 +147,7 @@ impl StyleState {
             }
             StyleState::Ref { start, end, bold, italic, underline, bg_color, fg_color } => {
                 (Self::None, Some(TextStyle {
-                    start: *start,
-                    end: *end,
+                    range: *start..*end,
                     bold: *bold,
                     italic: *italic,
                     underline: *underline,
@@ -239,15 +238,30 @@ impl Perform for TerminalParser {
                     }
                 }
                 38 => {
-                    // 扩展前景色 (RGB 模式)
-                    if let (Some(&2), Some(&r), Some(&g), Some(&b)) = (
-                        flat_params.next(),
-                        flat_params.next(),
-                        flat_params.next(),
-                        flat_params.next(),
-                    ) {
-                        if let Some(style) = self.style_state.init(None, None, None, None, Some(Color::rgb(r as f64, g as f64, b as f64))) {
-                            self.output.styles.push(style);
+                    let ty = flat_params.next().cloned();
+                    match ty {
+                        Some(2) => {
+                            if let (Some(&r), Some(&g), Some(&b)) = (
+                                // 扩展前景色 (RGB 模式)
+                                flat_params.next(),
+                                flat_params.next(),
+                                flat_params.next(),
+                            ) {
+                                if let Some(style) = self.style_state.init(None, None, None, None, Some(Color::rgb8(r as u8, g as u8, b as u8))) {
+                                    self.output.styles.push(style);
+                                }
+                            }
+                        }
+                        Some(5) => {
+                            if let Some(color_idx) = flat_params.next() {
+                                let color = Color::from(index_to_rgb(*color_idx as u8));
+                                if let Some(style) = self.style_state.init(None, None, None, None, Some(color)) {
+                                    self.output.styles.push(style);
+                                }
+                            }
+                        }
+                        _ => {
+                            warn!("not support {:?}", ty);
                         }
                     }
                 }
@@ -269,21 +283,60 @@ impl Perform for TerminalParser {
                     }
                 }
                 48 => {
-                    // 扩展背景色 (RGB 模式)
-                    if let (Some(&2), Some(&r), Some(&g), Some(&b)) = (
-                        flat_params.next(),
-                        flat_params.next(),
-                        flat_params.next(),
-                        flat_params.next(),
-                    ) {
-                        if let Some(style) = self.style_state.init(None, None, None, Some(Color::rgb(r as f64, g as f64, b as f64)), None) {
-                            self.output.styles.push(style);
+                    let ty = flat_params.next().cloned();
+                    match ty {
+                        Some(2) => {
+                            if let (Some(&r), Some(&g), Some(&b)) = (
+                                // 扩展背景色 (RGB 模式)
+                                flat_params.next(),
+                                flat_params.next(),
+                                flat_params.next(),
+                            ) {
+                                if let Some(style) = self.style_state.init(None, None, None, Some(Color::rgb8(r as u8, g as u8, b as u8)), None) {
+                                    self.output.styles.push(style);
+                                }
+                            }
+                        }
+                        Some(5) => {
+                            if let Some(color_idx) = flat_params.next() {
+                                let color = Color::from(index_to_rgb(*color_idx as u8));
+                                if let Some(style) = self.style_state.init(None, None, None, Some(color), None) {
+                                    self.output.styles.push(style);
+                                }
+                            }
+                        }
+                        _ => {
+                            warn!("not support {:?}", ty);
                         }
                     }
                 }
                 _ => {} // 忽略未处理的参数
             }
         }
+    }
+}
+
+// 将 256 色索引值转换为 RGB
+fn index_to_rgb(index: u8) -> [u8;3] {
+    if index < 16 {
+        // 基本的 ANSI 颜色
+        let basic_colors: [[u8;3]; 16] = [
+            [0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
+            [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192],
+            [128, 128, 128], [255, 0, 0], [0, 255, 0], [255, 255, 85],
+            [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255],
+        ];
+        return basic_colors[index as usize];
+    } else if index < 232 {
+        // 灰度渐变
+        let gray = (index - 16) * 10 + 8;
+        return [gray, gray, gray];
+    } else {
+        // 彩色渐变
+        let red = (index - 232) * 40;
+        let green = (index - 232) * 40;
+        let blue = (index - 232) * 40;
+        return [red, green, blue];
     }
 }
 

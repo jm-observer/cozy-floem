@@ -13,3 +13,4 @@ floem = {workspace = true}
 cozy-floem = {path = "../../" }
 parking_lot = {workspace = true}
 doc = {workspace = true}
+ansi-to-style = {workspace = true}

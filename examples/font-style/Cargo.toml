@@ -1,9 +1,0 @@
-[package]
-name = "font-style"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-log = {workspace = true}
-custom-utils = {workspace = true}
-floem = {workspace = true}
