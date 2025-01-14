@@ -1,5 +1,5 @@
 [workspace]
-members = [ ".", "libs/rust-resolve"]
+members = [ ".", "examples/simple-ansi-to-style", "libs/ansi-to-style", "libs/rust-resolve"]
 resolver = "2"
 
 
@@ -14,6 +14,9 @@ serde_json = "1.0.135"
 tokio = { version = "1.43.0", features = ["io-std", "io-util", "macros", "rt", "sync", "process", "rt-multi-thread"] }
 cargo_metadata = "0.19.1"
 parking_lot = { version = "0.12.1" }
+peniko = "=0.2.0"
+vte = "=0.14.1"
+ansi-to-style = {path = "libs/ansi-to-style"}
 
 [package]
 name = "cozy-floem"
@@ -26,10 +29,12 @@ floem = {workspace = true}
 lapce-xi-rope = {workspace = true}
 doc = {workspace = true}
 anyhow = {workspace = true}
+tokio = "1.43.0"
 
 [dev-dependencies]
 custom-utils = {workspace = true}
 rust-resolve = { path = "libs/rust-resolve"}
+tokio = {workspace = true}
 
 [patch."https://github.com/jm-observer/doc.git"]
 doc = {path = "../doc"}
