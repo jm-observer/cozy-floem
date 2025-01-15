@@ -90,12 +90,11 @@ pub async fn run_command(
                 {
                     match parsed {
                         Message::CompilerMessage(msg) => {
-                            // debug!("Compiler Message: {:?}", msg);
+                            debug!("Compiler Message: {}", line);
                             if let Some(rendered) = msg.message.rendered {
                                 channel.send(StyledText(parse_byte(rendered.as_bytes())))
                             }
                             // todo
-                            break;
                             // log::debug!("Compiler Message: {}",
                             // msg);
                             // resolve_compiler_message(

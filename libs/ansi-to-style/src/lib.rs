@@ -18,7 +18,7 @@ pub struct TextStyle {
     pub italic: bool,
     pub underline: bool,
     pub bg_color: Option<Color>,
-    pub fg_color: Option<Color>
+    pub fg_color: Option<Color>,
 }
 
 enum StyleState {
@@ -28,7 +28,7 @@ enum StyleState {
         italic: bool,
         underline: bool,
         bg_color: Option<Color>,
-        fg_color: Option<Color>
+        fg_color: Option<Color>,
     },
     Ref {
         start: usize,
@@ -37,14 +37,14 @@ enum StyleState {
         italic: bool,
         underline: bool,
         bg_color: Option<Color>,
-        fg_color: Option<Color>
-    }
+        fg_color: Option<Color>,
+    },
 }
 
 impl StyleState {
     pub fn ref_by(&mut self, offset: usize) {
         let update_state = match self {
-            StyleState::None => {return;}
+            StyleState::None => { return; }
             StyleState::Init {
                 bold, italic, underline, bg_color, fg_color
             } => {
@@ -67,7 +67,7 @@ impl StyleState {
     }
 
     pub fn init(&mut self, new_bold: Option<bool>, new_italic: Option<bool>, new_underline: Option<bool>, new_bg_color: Option<Color>,
-                new_fg_color: Option<Color>) -> Option<TextStyle>{
+                new_fg_color: Option<Color>) -> Option<TextStyle> {
         let (update_state, style) = match self {
             StyleState::None => {
                 let bold = new_bold.unwrap_or_default();
@@ -135,7 +135,7 @@ impl StyleState {
         *self = update_state;
         style
     }
-    pub fn clear(&mut self) -> Option<TextStyle>{
+    pub fn clear(&mut self) -> Option<TextStyle> {
         let (update_state, style) = match self {
             StyleState::None => {
                 return None;
@@ -163,7 +163,7 @@ impl StyleState {
 
 struct TerminalParser {
     output: StyledText,
-    style_state: StyleState
+    style_state: StyleState,
 }
 
 impl TerminalParser {
@@ -211,7 +211,7 @@ impl Perform for TerminalParser {
                     }
                 }
                 3 => {
-                    if let Some(style) = self.style_state.init(None, Some(true),  None, None, None) {
+                    if let Some(style) = self.style_state.init(None, Some(true), None, None, None) {
                         self.output.styles.push(style);
                     }
                 }
@@ -221,16 +221,16 @@ impl Perform for TerminalParser {
                     }
                 }
                 30..=37 => {
-                    // 标准前景色
+                    // 标准前景色 https://talyian.github.io/ansicolors/
                     let color = match param {
-                        30 => Color::BLACK,
-                        31 => Color::RED,
-                        32 => Color::GREEN,
-                        33 => Color::YELLOW,
-                        34 => Color::BLUE,
-                        35 => Color::MAGENTA,
-                        36 => Color::CYAN,
-                        37 => Color::WHITE,
+                        30 => Color::rgb8(0, 0, 0),
+                        31 => Color::rgb8(204, 0, 0),
+                        32 => Color::rgb8(0, 204, 0),
+                        33 => Color::rgb8(204, 204, 0),
+                        34 => Color::rgb8(0, 0, 204),
+                        35 => Color::rgb8(204, 0, 204),
+                        36 => Color::rgb8(0, 204, 204),
+                        37 => Color::rgb8(204, 204, 204),
                         _ => continue,
                     };
                     if let Some(style) = self.style_state.init(None, None, None, None, Some(color)) {
@@ -268,14 +268,14 @@ impl Perform for TerminalParser {
                 40..=47 => {
                     // 标准背景色
                     let color = match param {
-                        40 => Color::BLACK,
-                        41 => Color::RED,
-                        42 => Color::GREEN,
-                        43 => Color::YELLOW,
-                        44 => Color::BLUE,
-                        45 => Color::MAGENTA,
-                        46 => Color::CYAN,
-                        47 => Color::WHITE,
+                        40 => Color::rgb8(0, 0, 0),
+                        41 => Color::rgb8(204, 0, 0),
+                        42 => Color::rgb8(0, 204, 0),
+                        43 => Color::rgb8(204, 204, 0),
+                        44 => Color::rgb8(0, 0, 204),
+                        45 => Color::rgb8(204, 0, 204),
+                        46 => Color::rgb8(0, 204, 204),
+                        47 => Color::rgb8(204, 204, 204),
                         _ => continue,
                     };
                     if let Some(style) = self.style_state.init(None, None, None, Some(color), None) {
@@ -317,25 +317,23 @@ impl Perform for TerminalParser {
 }
 
 // 将 256 色索引值转换为 RGB
-fn index_to_rgb(index: u8) -> [u8;3] {
+pub fn index_to_rgb(index: u8) -> [u8; 3] {
     if index < 16 {
         // 基本的 ANSI 颜色
-        let basic_colors: [[u8;3]; 16] = [
-            [0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
-            [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192],
-            [128, 128, 128], [255, 0, 0], [0, 255, 0], [255, 255, 85],
-            [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255],
+        let basic_colors: [[u8; 3]; 16] = [
+            [0, 0, 0], [142, 0, 0], [0, 142, 0], [142, 142, 0], [0, 0, 142], [142, 0, 142], [0, 142, 142], [142, 142, 142],
+            [51, 51, 51], [214, 51, 51], [51, 214, 51], [214, 214, 51], [51, 51, 214], [214, 51, 214], [51, 214, 214], [214, 214, 214]
         ];
         return basic_colors[index as usize];
-    } else if index < 232 {
+    } else if index >= 232 {
         // 灰度渐变
-        let gray = (index - 16) * 10 + 8;
+        let gray = (index - 232) * 10 + 8;
         return [gray, gray, gray];
     } else {
         // 彩色渐变
-        let red = (index - 232) * 40;
-        let green = (index - 232) * 40;
-        let blue = (index - 232) * 40;
+        let red = (index - 16) / 36 * 51;
+        let green = ((index - 16) / 6) % 6 * 51;
+        let blue = (index - 16) % 6 * 51;
         return [red, green, blue];
     }
 }

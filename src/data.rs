@@ -387,9 +387,9 @@ impl SimpleDoc {
         lines: T,
     ) -> Result<()> {
         let mut old_len = self.rope.len();
-        if old_len > 0 {
-            self.rope.edit(old_len..old_len, self.line_ending.get_chars());
-        }
+        // if old_len > 0 {
+        //     self.rope.edit(old_len..old_len, self.line_ending.get_chars());
+        // }
         self.rope.edit(self.rope.len()..self.rope.len(), lines.content());
 
         let old_line = self.rope.line_of_offset(old_len);
@@ -399,13 +399,15 @@ impl SimpleDoc {
         );
         debug!("last_line={last_line} old_line={old_line} content={}", lines.content().len());
         let mut delta = 0;
+        let trim_str = ['\r', '\n'];
         for line_index in old_line..last_line {
             let start_offset = self.rope.offset_of_line(line_index)?;
             let end_offset = self.rope.offset_of_line(line_index + 1)?;
             let mut attrs_list = AttrsList::new(self.style.attrs(&family));
             let rang = start_offset - old_len..end_offset - old_len;
             let mut font_system = FONT_SYSTEM.lock();
-            let content = self.rope.slice_to_cow(start_offset..end_offset);
+            let content_origin = self.rope.slice_to_cow(start_offset..end_offset);
+            let content = content_origin.trim_end_matches(&trim_str);
             debug!("line_index={line_index} rang={rang:?} content={content}");
             let hyperlink = lines.line_attrs(&mut attrs_list,self.style.attrs(&family), rang, delta);
             let text = TextLayout::new_with_font_system(
@@ -414,33 +416,33 @@ impl SimpleDoc {
                 attrs_list,
                 &mut font_system,
             );
-            // let points: Vec<(f64, f64, Hyperlink)> = hyperlink
-            //     .into_iter()
-            //     .map(|x| {
-            //         let x0 = text.hit_position(x.start_offset).point.x;
-            //         let x1 = text.hit_position(x.end_offset).point.x;
-            //         (x0, x1, x)
-            //     })
-            //     .collect();
-            //
-            // let y = self.height_of_line(line_index) + self.line_height;
-            let hyperlinks: Vec<(Point, Point, Color)> = vec![];
-            // let hyperlinks: Vec<(Point, Point, Color)> = points
-            //     .iter()
-            //     .map(|(x0, x1, link)| {
-            //         (
-            //             Point::new(*x0, y - 1.0),
-            //             Point::new(*x1, y - 1.0),
-            //             link.line_color.unwrap_or(self.style.fg_color)
-            //         )
-            //     })
-            //     .collect();
-            // let mut hyperlink_region: Vec<(Rect, Hyperlink)> = points
-            //     .into_iter()
-            //     .map(|(x0, x1, data)| {
-            //         (Rect::new(x0, y - self.line_height, x1, y), data)
-            //     })
-            //     .collect();
+            let points: Vec<(f64, f64, Hyperlink)> = hyperlink
+                .into_iter()
+                .map(|x| {
+                    let x0 = text.hit_position(x.start_offset).point.x;
+                    let x1 = text.hit_position(x.end_offset).point.x;
+                    (x0, x1, x)
+                })
+                .collect();
+
+            let y = self.height_of_line(line_index) + self.line_height;
+            // let hyperlinks: Vec<(Point, Point, Color)> = vec![];
+            let hyperlinks: Vec<(Point, Point, Color)> = points
+                .iter()
+                .map(|(x0, x1, link)| {
+                    (
+                        Point::new(*x0, y - 1.0),
+                        Point::new(*x1, y - 1.0),
+                        link.line_color.unwrap_or(self.style.fg_color)
+                    )
+                })
+                .collect();
+            let mut hyperlink_region: Vec<(Rect, Hyperlink)> = points
+                .into_iter()
+                .map(|(x0, x1, data)| {
+                    (Rect::new(x0, y - self.line_height, x1, y), data)
+                })
+                .collect();
             self.visual_line.push(VisualLine {
                 line_index,
                 text_layout: TextLayoutLine { text, hyperlinks },

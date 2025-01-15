@@ -84,7 +84,7 @@ pub(crate) fn init_content(mut channel: ExtChannel<Line>) {
         .line_height(LineHeightValue::Px(23.0));
     let mut attr_list = AttrsList::new(attrs);
     let attrs = Attrs::new()
-        .color(Color::GREEN)
+        .color(Color::rgba8(214, 214, 51, 255))
         .family(&family)
         .font_size(font_size as f32)
         .weight(Weight::BOLD)

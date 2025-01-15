@@ -1,4 +1,4 @@
-use ansi_to_style::parse_byte;
+use ansi_to_style::{index_to_rgb, parse_byte};
 
 fn main() {
     // let input: &[u8] = &[
@@ -59,4 +59,40 @@ warning: unused variable: `input`
     println!("content: {:?}", content);
     println!("Parsed Text: {}", output.text);
     println!("Styles: {:?}", output.styles);
+
+
+    let index_color = [(124, [153, 0, 0]),
+        (125, [153, 0, 51]),
+        (126, [153, 0, 102]),
+        (127, [153, 0, 153]),
+        (128, [153, 0, 204]),
+        (129, [153, 0, 255]),
+        (130, [153, 51, 0]),
+        (131, [153, 51, 51]),
+        (132, [153, 51, 102]),
+        (133, [153, 51, 153]),
+        (134, [153, 51, 204]),
+        (135, [153, 51, 255])];
+
+    for (index, rgb) in index_color.into_iter() {
+        assert_eq!(index_to_rgb(index), rgb)
+    }
+
+    // ??
+    // let index_color = [(244, [128, 128, 128]),
+    // (245, [138, 138, 138]),
+    // (246, [149, 149, 149]),
+    // (247, [160, 160, 160]),
+    // (248, [170, 170, 170]),
+    // (249, [181, 181, 181]),
+    // (250, [192, 192, 192]),
+    // (251, [202, 202, 202]),
+    // (252, [213, 213, 213]),
+    // (253, [224, 224, 224]),
+    // (254, [234, 234, 234]),
+    // (255, [245, 245, 245])];
+    // for (index, rgb) in index_color.into_iter() {
+    //     assert_eq!(index_to_rgb(index), rgb)
+    // }
+
 }

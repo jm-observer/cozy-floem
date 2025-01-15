@@ -45,7 +45,7 @@ fn main() -> anyhow::Result<()> {
                 if let Err(err) = x.append_lines(line) {
                     error!("{err:?}");
                 }
-                info!("{}", x.visual_line.len());
+                // info!("{}", x.visual_line.len());
             });
         }
     });

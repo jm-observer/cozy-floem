@@ -194,7 +194,7 @@ impl View for EditorView {
         for line_info in lines {
             let y = line_info.line_index as f64 * line_height;
             let text_layout = line_info.text_layout;
-            debug!("line_index={} y={y} ", line_info.line_index);
+            // debug!("line_index={} y={y} ", line_info.line_index);
             paint_extra_style(cx, &text_layout.hyperlinks);
             cx.draw_text_with_layout(
                 text_layout.text.layout_runs(),
