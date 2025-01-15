@@ -1,41 +1,32 @@
-mod resolve;
-
-use crate::resolve::resolve_compiler_message;
+use ansi_to_style::{TextStyle, parse_byte};
 use anyhow::Result;
-use cargo_metadata::Message;
-use cozy_floem::data::{Hyperlink, Line, ranges_overlap, Styled};
+use cargo_metadata::{CompilerMessage, Message};
+use cozy_floem::data::{Hyperlink, ranges_overlap};
 use floem::{
     ext_event::{
-        ExtSendTrigger, create_ext_action, register_ext_trigger,
+        ExtSendTrigger, create_ext_action, register_ext_trigger
     },
     prelude::{SignalGet, SignalUpdate},
     reactive::{ReadSignal, Scope, with_scope},
-    text::{
-        Attrs, AttrsList, FamilyOwned, LineHeightValue,
-    },
+    text::{Attrs, AttrsList, Style, Weight}
 };
-use log::{debug, error};
+use log::{debug, warn};
 use parking_lot::Mutex;
-use std::{collections::VecDeque, sync::Arc};
-use std::ops::Range;
-use floem::prelude::Color;
-use floem::text::{Style, Weight};
+use std::{collections::VecDeque, ops::Range, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
-    sync::mpsc,
+    sync::mpsc
 };
-use ansi_to_style::{parse_byte, TextStyle};
 
 pub enum OutputLine {
     StdOut(String),
-    StdErr(String),
+    StdErr(String)
 }
 
 pub async fn run_command(
     mut command: Command,
-    mut channel: ExtChannel<StyledText>,
-    style: PanelStyle,
+    mut channel: ExtChannel<StyledText>
 ) -> Result<()> {
     // 启动子进程，并捕获 stdout 和 stderr
     let mut child = command
@@ -72,12 +63,12 @@ pub async fn run_command(
         });
     }
 
-    let font_family = style.font_family();
-    let attrs = Attrs::new()
-        .family(&font_family)
-        .font_size(style.font_size)
-        .line_height(LineHeightValue::Px(style.line_height));
-    let attr_list = AttrsList::new(attrs);
+    // let font_family = style.font_family();
+    // let attrs = Attrs::new()
+    //     .family(&font_family)
+    //     .font_size(style.font_size)
+    //     .line_height(LineHeightValue::Px(style.line_height));
+    // let attr_list = AttrsList::new(attrs);
     // 主任务按时间顺序处理消息
     drop(tx); // 关闭发送端，确保任务结束后 `rx` 能正确完成
     while let Some(message) = rx.recv().await {
@@ -91,8 +82,20 @@ pub async fn run_command(
                     match parsed {
                         Message::CompilerMessage(msg) => {
                             debug!("Compiler Message: {}", line);
-                            if let Some(rendered) = msg.message.rendered {
-                                channel.send(StyledText(parse_byte(rendered.as_bytes())))
+                            if let Some(rendered) =
+                                &msg.message.rendered
+                            {
+                                let styled_text =
+                                    parse_byte(rendered.as_bytes());
+                                let hyperlink =
+                                    resolve_hyperlink_from_message(
+                                        msg,
+                                        styled_text.text.as_str()
+                                    );
+                                channel.send(StyledText {
+                                    styled_text,
+                                    hyperlink
+                                });
                             }
                             // todo
                             // log::debug!("Compiler Message: {}",
@@ -102,22 +105,22 @@ pub async fn run_command(
                             //     &style,
                             //     &mut channel
                             // );
-                        }
+                        },
                         Message::CompilerArtifact(_script) => {
                             // log::debug!("Compiler Artifact: {:?}",
                             // artifact);
-                        }
+                        },
                         Message::BuildScriptExecuted(_script) => {
                             // log::debug!("Build Script Executed:
                             // {:?}", script);
-                        }
+                        },
                         Message::BuildFinished(_script) => {
                             // log::debug!("Build Finished: {:?}",
                             // script);
-                        }
+                        },
                         Message::TextLine(_script) => {
                             // log::debug!("TextLine: {:?}", script);
-                        }
+                        },
                         val => {
                             log::debug!("??????????: {:?}", val);
                         }
@@ -125,19 +128,13 @@ pub async fn run_command(
                 } else {
                     log::debug!("Non-JSON stdout: {}", line);
                 }
-            }
+            },
             OutputLine::StdErr(line) => {
-                // let styled_text = parse_byte(line.as_bytes());
-                // log::debug!("StdErr: {}",
-                //             styled_text.text);
-                // log::debug!("StdErr: {:?}",
-                //             styled_text.styles);
-                // log::debug!("stderr: {}", line);
-                // channel.send(Line {
-                //     content:    line,
-                //     attrs_list: attr_list.clone(),
-                //     hyperlink:  vec![]
-                // });
+                let styled_text = parse_byte(line.as_bytes());
+                channel.send(StyledText {
+                    styled_text,
+                    hyperlink: vec![]
+                });
             }
         }
     }
@@ -178,7 +175,7 @@ pub fn create_signal_from_channel<T: Send + Clone + 'static>(
 
 pub struct ExtChannel<T: Send + Clone + 'static> {
     trigger: ExtSendTrigger,
-    data: Arc<Mutex<VecDeque<T>>>,
+    data:    Arc<Mutex<VecDeque<T>>>
 }
 
 impl<T: Send + Clone + 'static> ExtChannel<T> {
@@ -188,45 +185,50 @@ impl<T: Send + Clone + 'static> ExtChannel<T> {
     }
 }
 
-pub struct PanelStyle {
-    pub font_size: f32,
-    font_family: String,
-    pub line_height: f32,
-    pub error_color: Color,
-    pub warn_color: Color,
-    pub code_relative: Color,
-    pub hyperlink_color: Color,
-}
-
-impl PanelStyle {
-    pub fn new(
-        font_size: f32,
-        font_family: String,
-        line_height: f32,
-    ) -> Self {
-        Self {
-            font_size,
-            font_family,
-            line_height,
-            error_color: Color::RED,
-            warn_color: Color::YELLOW,
-            code_relative: Color::rgb(116., 177., 241.),
-            hyperlink_color: Color::BLUE,
-        }
-    }
-
-    pub fn font_family(&self) -> Vec<FamilyOwned> {
-        FamilyOwned::parse_list(&self.font_family).collect()
-    }
-}
+// pub struct PanelStyle {
+//     pub font_size: f32,
+//     font_family: String,
+//     pub line_height: f32,
+//     pub error_color: Color,
+//     pub warn_color: Color,
+//     pub code_relative: Color,
+//     pub hyperlink_color: Color,
+// }
+//
+// impl PanelStyle {
+//     pub fn new(
+//         font_size: f32,
+//         font_family: String,
+//         line_height: f32,
+//     ) -> Self {
+//         Self {
+//             font_size,
+//             font_family,
+//             line_height,
+//             error_color: Color::RED,
+//             warn_color: Color::YELLOW,
+//             code_relative: Color::rgb(116., 177., 241.),
+//             hyperlink_color: Color::BLUE,
+//         }
+//     }
+//
+//     pub fn font_family(&self) -> Vec<FamilyOwned> {
+//         FamilyOwned::parse_list(&self.font_family).collect()
+//     }
+// }
 
 #[derive(Clone)]
-pub struct StyledText(pub ansi_to_style::StyledText);
+pub struct StyledText {
+    pub styled_text: ansi_to_style::StyledText,
+    pub hyperlink:   Vec<Hyperlink>
+}
 
 impl StyledText {
     pub fn test_line_attrs(&self, range: Range<usize>) {
-        self.0.styles.iter().for_each(|x| {
-            if let Some(delta_range) = ranges_overlap(&x.range, &range) {
+        self.styled_text.styles.iter().for_each(|x| {
+            if let Some(delta_range) =
+                ranges_overlap(&x.range, &range)
+            {
                 debug!("delta_range={delta_range:?}, style: {x:?}");
             }
         });
@@ -235,14 +237,25 @@ impl StyledText {
 
 impl cozy_floem::data::Styled for StyledText {
     fn content(&self) -> &str {
-        &self.0.text
+        &self.styled_text.text
     }
 
-    fn line_attrs(&self, attrs_list: &mut AttrsList, default_attrs: Attrs, range: Range<usize>, delta: usize) -> Vec<Hyperlink> {
-        self.0.styles.iter().filter_map(|x| {
-            if let Some(delta_range) = ranges_overlap(&x.range, &range) {
+    fn line_attrs(
+        &self,
+        attrs_list: &mut AttrsList,
+        default_attrs: Attrs,
+        range: Range<usize>,
+        delta: usize
+    ) -> Vec<Hyperlink> {
+        self.styled_text.styles.iter().for_each(|x| {
+            if let Some(delta_range) =
+                ranges_overlap(&x.range, &range)
+            {
                 let TextStyle {
-                    bold, italic, underline, fg_color, ..
+                    bold,
+                    italic,
+                    fg_color,
+                    ..
                 } = x;
                 let mut attrs = default_attrs;
                 if *bold {
@@ -254,20 +267,69 @@ impl cozy_floem::data::Styled for StyledText {
                 if let Some(fg) = fg_color {
                     attrs = attrs.color(*fg);
                 }
-                let range = delta_range.start - delta..delta_range.end - delta;
-                debug!("delta_range={range:?}, style: {x:?}");
+                let range = delta_range.start - delta
+                    ..delta_range.end - delta;
+                // debug!("delta_range={range:?}, style: {x:?}");
                 attrs_list.add_span(range, attrs);
-                if *underline {
-                    let link = Hyperlink {
-                        start_offset: delta_range.start,
-                        end_offset: delta_range.end,
-                        link: "".to_string(),
-                        line_color: *fg_color,
-                    };
-                    return Some(link);
-                }
             }
-            None
-        }).collect()
+        });
+        self.hyperlink
+            .iter()
+            .filter_map(|x| {
+                if let Some(delta_range) =
+                    ranges_overlap(&x.range(), &range)
+                {
+                    let range = delta_range.start - delta
+                        ..delta_range.end - delta;
+                    let mut x = x.clone();
+                    x.range_mut(range);
+                    Some(x)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
+}
+
+fn resolve_hyperlink_from_message(
+    msg: CompilerMessage,
+    text: &str
+) -> Vec<Hyperlink> {
+    let mut file_hyper: Vec<Hyperlink> = msg
+        .message
+        .spans
+        .into_iter()
+        .filter_map(|x| {
+            let full_info = format!(
+                "{}:{}:{}",
+                x.file_name, x.line_start, x.column_start
+            );
+            if let Some(index) = text.find(full_info.as_str()) {
+                Some(Hyperlink::File {
+                    range:  index..index + full_info.len(),
+                    src:    x.file_name,
+                    line:   x.line_start,
+                    column: Some(x.column_start)
+                })
+            } else {
+                warn!("not found: {full_info}");
+                None
+            }
+        })
+        .collect();
+    if let Some(code_hyper) = msg.message.code.and_then(|x| {
+        if let Some(index) = text.find(x.code.as_str()) {
+            Some(Hyperlink::Url {
+                range: index..index + x.code.len(),
+                // todo
+                url:   "".to_string()
+            })
+        } else {
+            None
+        }
+    }) {
+        file_hyper.push(code_hyper)
+    }
+    file_hyper
 }

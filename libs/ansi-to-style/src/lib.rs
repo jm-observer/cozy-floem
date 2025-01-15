@@ -1,63 +1,65 @@
-use std::collections::HashMap;
-use std::ops::Range;
-use std::ptr::NonNull;
 use log::warn;
 use peniko::Color;
+use std::ops::Range;
 use vte::{Params, Parser, Perform};
 
 #[derive(Debug, Default, Clone)]
 pub struct StyledText {
-    pub text: String,
-    pub styles: Vec<TextStyle>,
+    pub text:   String,
+    pub styles: Vec<TextStyle>
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct TextStyle {
-    pub range: Range<usize>,
-    pub bold: bool,
-    pub italic: bool,
+    pub range:     Range<usize>,
+    pub bold:      bool,
+    pub italic:    bool,
     pub underline: bool,
-    pub bg_color: Option<Color>,
-    pub fg_color: Option<Color>,
+    pub bg_color:  Option<Color>,
+    pub fg_color:  Option<Color>
 }
 
 enum StyleState {
     None,
     Init {
-        bold: bool,
-        italic: bool,
+        bold:      bool,
+        italic:    bool,
         underline: bool,
-        bg_color: Option<Color>,
-        fg_color: Option<Color>,
+        bg_color:  Option<Color>,
+        fg_color:  Option<Color>
     },
     Ref {
-        start: usize,
-        end: usize,
-        bold: bool,
-        italic: bool,
+        start:     usize,
+        end:       usize,
+        bold:      bool,
+        italic:    bool,
         underline: bool,
-        bg_color: Option<Color>,
-        fg_color: Option<Color>,
-    },
+        bg_color:  Option<Color>,
+        fg_color:  Option<Color>
+    }
 }
 
 impl StyleState {
     pub fn ref_by(&mut self, offset: usize) {
         let update_state = match self {
-            StyleState::None => { return; }
+            StyleState::None => {
+                return;
+            },
             StyleState::Init {
-                bold, italic, underline, bg_color, fg_color
-            } => {
-                Self::Ref {
-                    start: offset,
-                    end: offset + 1,
-                    bold: *bold,
-                    italic: *italic,
-                    underline: *underline,
-                    bg_color: bg_color.clone(),
-                    fg_color: fg_color.clone(),
-                }
-            }
+                bold,
+                italic,
+                underline,
+                bg_color,
+                fg_color
+            } => Self::Ref {
+                start:     offset,
+                end:       offset + 1,
+                bold:      *bold,
+                italic:    *italic,
+                underline: *underline,
+                bg_color:  bg_color.clone(),
+                fg_color:  fg_color.clone()
+            },
             StyleState::Ref { end, .. } => {
                 *end = offset + 1;
                 return;
@@ -66,23 +68,36 @@ impl StyleState {
         *self = update_state;
     }
 
-    pub fn init(&mut self, new_bold: Option<bool>, new_italic: Option<bool>, new_underline: Option<bool>, new_bg_color: Option<Color>,
-                new_fg_color: Option<Color>) -> Option<TextStyle> {
+    pub fn init(
+        &mut self,
+        new_bold: Option<bool>,
+        new_italic: Option<bool>,
+        new_underline: Option<bool>,
+        new_bg_color: Option<Color>,
+        new_fg_color: Option<Color>
+    ) -> Option<TextStyle> {
         let (update_state, style) = match self {
             StyleState::None => {
                 let bold = new_bold.unwrap_or_default();
                 let italic = new_italic.unwrap_or_default();
                 let underline = new_underline.unwrap_or_default();
-                (Self::Init {
-                    bold,
-                    italic,
-                    underline,
-                    bg_color: new_bg_color,
-                    fg_color: new_fg_color,
-                }, None)
-            }
+                (
+                    Self::Init {
+                        bold,
+                        italic,
+                        underline,
+                        bg_color: new_bg_color,
+                        fg_color: new_fg_color
+                    },
+                    None
+                )
+            },
             StyleState::Init {
-                bold, italic, underline, bg_color, fg_color
+                bold,
+                italic,
+                underline,
+                bg_color,
+                fg_color
             } => {
                 if let Some(new_bold) = new_bold {
                     *bold = new_bold;
@@ -100,15 +115,23 @@ impl StyleState {
                     *fg_color = Some(new_fg_color);
                 }
                 return None;
-            }
-            StyleState::Ref { start, end, bold, italic, underline, bg_color, fg_color } => {
+            },
+            StyleState::Ref {
+                start,
+                end,
+                bold,
+                italic,
+                underline,
+                bg_color,
+                fg_color
+            } => {
                 let style = TextStyle {
-                    range: *start..*end,
-                    bold: *bold,
-                    italic: *italic,
+                    range:     *start..*end,
+                    bold:      *bold,
+                    italic:    *italic,
                     underline: *underline,
-                    bg_color: *bg_color,
-                    fg_color: *fg_color,
+                    bg_color:  *bg_color,
+                    fg_color:  *fg_color
                 };
                 let bold = new_bold.unwrap_or(*bold);
                 let italic = new_italic.unwrap_or(*italic);
@@ -123,38 +146,47 @@ impl StyleState {
                 } else {
                     new_fg_color
                 };
-                (Self::Init {
-                    bold,
-                    italic,
-                    underline,
-                    bg_color,
-                    fg_color,
-                }, Some(style))
+                (
+                    Self::Init {
+                        bold,
+                        italic,
+                        underline,
+                        bg_color,
+                        fg_color
+                    },
+                    Some(style)
+                )
             }
         };
         *self = update_state;
         style
     }
+
     pub fn clear(&mut self) -> Option<TextStyle> {
         let (update_state, style) = match self {
             StyleState::None => {
                 return None;
-            }
-            StyleState::Init {
-                ..
-            } => {
-                (Self::None, None)
-            }
-            StyleState::Ref { start, end, bold, italic, underline, bg_color, fg_color } => {
-                (Self::None, Some(TextStyle {
-                    range: *start..*end,
-                    bold: *bold,
-                    italic: *italic,
+            },
+            StyleState::Init { .. } => (Self::None, None),
+            StyleState::Ref {
+                start,
+                end,
+                bold,
+                italic,
+                underline,
+                bg_color,
+                fg_color
+            } => (
+                Self::None,
+                Some(TextStyle {
+                    range:     *start..*end,
+                    bold:      *bold,
+                    italic:    *italic,
                     underline: *underline,
-                    bg_color: *bg_color,
-                    fg_color: *fg_color,
-                }))
-            }
+                    bg_color:  *bg_color,
+                    fg_color:  *fg_color
+                })
+            )
         };
         *self = update_state;
         style
@@ -162,15 +194,15 @@ impl StyleState {
 }
 
 struct TerminalParser {
-    output: StyledText,
-    style_state: StyleState,
+    output:      StyledText,
+    style_state: StyleState
 }
 
 impl TerminalParser {
     fn new() -> Self {
         Self {
-            output: StyledText::default(),
-            style_state: StyleState::None,
+            output:      StyledText::default(),
+            style_state: StyleState::None
         }
     }
 }
@@ -192,34 +224,55 @@ impl Perform for TerminalParser {
         params: &Params,
         _intermediates: &[u8],
         _ignore: bool,
-        _action: char,
+        _action: char
     ) {
         if _action != 'm' {
             return; // 只处理 SGR (m) 操作
         }
 
         // 将参数展开为一个扁平化的迭代器
-        let mut flat_params = params.iter().flat_map(|sub_params| sub_params.iter());
+        let mut flat_params =
+            params.iter().flat_map(|sub_params| sub_params.iter());
         while let Some(&param) = flat_params.next() {
             match param {
-                0 => if let Some(style) = self.style_state.clear() {
-                    self.output.styles.push(style);
+                0 => {
+                    if let Some(style) = self.style_state.clear() {
+                        self.output.styles.push(style);
+                    }
                 }, // 重置样式
                 1 => {
-                    if let Some(style) = self.style_state.init(Some(true), None, None, None, None) {
+                    if let Some(style) = self.style_state.init(
+                        Some(true),
+                        None,
+                        None,
+                        None,
+                        None
+                    ) {
                         self.output.styles.push(style);
                     }
-                }
+                },
                 3 => {
-                    if let Some(style) = self.style_state.init(None, Some(true), None, None, None) {
+                    if let Some(style) = self.style_state.init(
+                        None,
+                        Some(true),
+                        None,
+                        None,
+                        None
+                    ) {
                         self.output.styles.push(style);
                     }
-                }
+                },
                 4 => {
-                    if let Some(style) = self.style_state.init(None, None, Some(true), None, None) {
+                    if let Some(style) = self.style_state.init(
+                        None,
+                        None,
+                        Some(true),
+                        None,
+                        None
+                    ) {
                         self.output.styles.push(style);
                     }
-                }
+                },
                 30..=37 => {
                     // 标准前景色 https://talyian.github.io/ansicolors/
                     let color = match param {
@@ -231,12 +284,18 @@ impl Perform for TerminalParser {
                         35 => Color::rgb8(204, 0, 204),
                         36 => Color::rgb8(0, 204, 204),
                         37 => Color::rgb8(204, 204, 204),
-                        _ => continue,
+                        _ => continue
                     };
-                    if let Some(style) = self.style_state.init(None, None, None, None, Some(color)) {
+                    if let Some(style) = self.style_state.init(
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(color)
+                    ) {
                         self.output.styles.push(style);
                     }
-                }
+                },
                 38 => {
                     let ty = flat_params.next().cloned();
                     match ty {
@@ -245,26 +304,48 @@ impl Perform for TerminalParser {
                                 // 扩展前景色 (RGB 模式)
                                 flat_params.next(),
                                 flat_params.next(),
-                                flat_params.next(),
+                                flat_params.next()
                             ) {
-                                if let Some(style) = self.style_state.init(None, None, None, None, Some(Color::rgb8(r as u8, g as u8, b as u8))) {
+                                if let Some(style) =
+                                    self.style_state.init(
+                                        None,
+                                        None,
+                                        None,
+                                        None,
+                                        Some(Color::rgb8(
+                                            r as u8, g as u8, b as u8
+                                        ))
+                                    )
+                                {
                                     self.output.styles.push(style);
                                 }
                             }
-                        }
+                        },
                         Some(5) => {
-                            if let Some(color_idx) = flat_params.next() {
-                                let color = Color::from(index_to_rgb(*color_idx as u8));
-                                if let Some(style) = self.style_state.init(None, None, None, None, Some(color)) {
+                            if let Some(color_idx) =
+                                flat_params.next()
+                            {
+                                let color = Color::from(
+                                    index_to_rgb(*color_idx as u8)
+                                );
+                                if let Some(style) =
+                                    self.style_state.init(
+                                        None,
+                                        None,
+                                        None,
+                                        None,
+                                        Some(color)
+                                    )
+                                {
                                     self.output.styles.push(style);
                                 }
                             }
-                        }
+                        },
                         _ => {
                             warn!("not support {:?}", ty);
                         }
                     }
-                }
+                },
                 40..=47 => {
                     // 标准背景色
                     let color = match param {
@@ -276,12 +357,18 @@ impl Perform for TerminalParser {
                         45 => Color::rgb8(204, 0, 204),
                         46 => Color::rgb8(0, 204, 204),
                         47 => Color::rgb8(204, 204, 204),
-                        _ => continue,
+                        _ => continue
                     };
-                    if let Some(style) = self.style_state.init(None, None, None, Some(color), None) {
+                    if let Some(style) = self.style_state.init(
+                        None,
+                        None,
+                        None,
+                        Some(color),
+                        None
+                    ) {
                         self.output.styles.push(style);
                     }
-                }
+                },
                 48 => {
                     let ty = flat_params.next().cloned();
                     match ty {
@@ -290,26 +377,48 @@ impl Perform for TerminalParser {
                                 // 扩展背景色 (RGB 模式)
                                 flat_params.next(),
                                 flat_params.next(),
-                                flat_params.next(),
+                                flat_params.next()
                             ) {
-                                if let Some(style) = self.style_state.init(None, None, None, Some(Color::rgb8(r as u8, g as u8, b as u8)), None) {
+                                if let Some(style) =
+                                    self.style_state.init(
+                                        None,
+                                        None,
+                                        None,
+                                        Some(Color::rgb8(
+                                            r as u8, g as u8, b as u8
+                                        )),
+                                        None
+                                    )
+                                {
                                     self.output.styles.push(style);
                                 }
                             }
-                        }
+                        },
                         Some(5) => {
-                            if let Some(color_idx) = flat_params.next() {
-                                let color = Color::from(index_to_rgb(*color_idx as u8));
-                                if let Some(style) = self.style_state.init(None, None, None, Some(color), None) {
+                            if let Some(color_idx) =
+                                flat_params.next()
+                            {
+                                let color = Color::from(
+                                    index_to_rgb(*color_idx as u8)
+                                );
+                                if let Some(style) =
+                                    self.style_state.init(
+                                        None,
+                                        None,
+                                        None,
+                                        Some(color),
+                                        None
+                                    )
+                                {
                                     self.output.styles.push(style);
                                 }
                             }
-                        }
+                        },
                         _ => {
                             warn!("not support {:?}", ty);
                         }
                     }
-                }
+                },
                 _ => {} // 忽略未处理的参数
             }
         }
@@ -321,8 +430,22 @@ pub fn index_to_rgb(index: u8) -> [u8; 3] {
     if index < 16 {
         // 基本的 ANSI 颜色
         let basic_colors: [[u8; 3]; 16] = [
-            [0, 0, 0], [142, 0, 0], [0, 142, 0], [142, 142, 0], [0, 0, 142], [142, 0, 142], [0, 142, 142], [142, 142, 142],
-            [51, 51, 51], [214, 51, 51], [51, 214, 51], [214, 214, 51], [51, 51, 214], [214, 51, 214], [51, 214, 214], [214, 214, 214]
+            [0, 0, 0],
+            [142, 0, 0],
+            [0, 142, 0],
+            [142, 142, 0],
+            [0, 0, 142],
+            [142, 0, 142],
+            [0, 142, 142],
+            [142, 142, 142],
+            [51, 51, 51],
+            [214, 51, 51],
+            [51, 214, 51],
+            [214, 214, 51],
+            [51, 51, 214],
+            [214, 51, 214],
+            [51, 214, 214],
+            [214, 214, 214]
         ];
         return basic_colors[index as usize];
     } else if index >= 232 {

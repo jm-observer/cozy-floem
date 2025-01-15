@@ -1,8 +1,4 @@
-use cozy_floem::{
-    data::{Line, SimpleDoc},
-    view::panel
-};
-use doc::lines::line_ending::LineEnding;
+use cozy_floem::{data::SimpleDoc, view::panel};
 use floem::{
     View, ViewId,
     keyboard::{Key, NamedKey},
@@ -12,16 +8,18 @@ use floem::{
     },
     reactive::Scope
 };
-use log::{LevelFilter::Info, info, error};
-use rust_resolve::{PanelStyle, create_signal_from_channel, ExtChannel, run_command, StyledText};
+use log::{LevelFilter::Info, error};
+use rust_resolve::{
+    ExtChannel, StyledText, create_signal_from_channel, run_command
+};
 use std::thread;
 use tokio::process::Command;
-use cozy_floem::data::Styled;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
         "panel",
-        "error,rust_resolve=debug,cozy_rust_panel=debug,cozy_floem=debug",
+        "error,rust_resolve=debug,cozy_rust_panel=debug,\
+         cozy_floem=debug",
         Info,
         false
     )
@@ -32,11 +30,7 @@ fn main() -> anyhow::Result<()> {
         create_signal_from_channel::<StyledText>(cx);
 
     let hover_hyperlink = create_rw_signal(None);
-    let doc = SimpleDoc::new(
-        ViewId::new(),
-        LineEnding::CrLf,
-        hover_hyperlink
-    );
+    let doc = SimpleDoc::new(ViewId::new(), hover_hyperlink);
     let simple_doc = create_rw_signal(doc);
 
     cx.create_effect(move |_| {
@@ -50,10 +44,10 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    let style =
-        PanelStyle::new(13.0, "JetBrains Mono".to_string(), 23.0);
+    // let style =
+    //     PanelStyle::new(13.0, "JetBrains Mono".to_string(), 23.0);
     thread::spawn(|| {
-        run(channel, style);
+        run(channel);
         send(())
     });
     // if let Err(err) = tast.join() {
@@ -74,15 +68,12 @@ fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn run(channel: ExtChannel<StyledText>, style: PanelStyle) {
-    if let Err(err) = _run(channel, style).await {
+pub async fn run(channel: ExtChannel<StyledText>) {
+    if let Err(err) = _run(channel).await {
         error!("{:?}", err);
     }
 }
-async fn _run(
-    channel: ExtChannel<StyledText>,
-    style: PanelStyle
-) -> anyhow::Result<()> {
+async fn _run(channel: ExtChannel<StyledText>) -> anyhow::Result<()> {
     let mut command = Command::new("cargo");
     command.args([
         "clean",
@@ -95,9 +86,14 @@ async fn _run(
     command.args([
         "build",
         "--message-format=json-diagnostic-rendered-ansi",
-        "--color=always","--manifest-path",
-        "D:\\git\\check_2\\Cargo.toml","--package","check","--bin","check"
+        "--color=always",
+        "--manifest-path",
+        "D:\\git\\check_2\\Cargo.toml",
+        "--package",
+        "check",
+        "--bin",
+        "check"
     ]);
-    run_command(command, channel, style).await?;
+    run_command(command, channel).await?;
     Ok(())
 }

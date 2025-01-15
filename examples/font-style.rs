@@ -13,15 +13,11 @@ fn app_view() -> impl IntoView {
         container(label(
             "warning",
             Some(Color::rgb8(255, 255, 85)),
-            None,
-        ))
-        .style(|x| x.width(10.0)),
-        container(label(
-            "{",
-            Some(Color::rgb(0., 0., 255.)),
             None
         ))
         .style(|x| x.width(10.0)),
+        container(label("{", Some(Color::rgb(0., 0., 255.)), None))
+            .style(|x| x.width(10.0)),
         container(label(
             "{",
             Some(Color::parse("#98FB98").unwrap()),
