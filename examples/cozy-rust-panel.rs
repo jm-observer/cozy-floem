@@ -1,18 +1,15 @@
 use cozy_floem::{data::SimpleDoc, view::panel};
-use floem::{
-    View, ViewId,
-    keyboard::{Key, NamedKey},
-    prelude::{
-        Decorators, RwSignal, SignalGet, SignalUpdate,
-        create_rw_signal
-    },
-    reactive::Scope
-};
+use floem::{View, ViewId, keyboard::{Key, NamedKey}, prelude::{
+    Decorators, RwSignal, SignalGet, SignalUpdate,
+    create_rw_signal
+}, reactive::Scope, Application};
 use log::{LevelFilter::Info, error};
 use rust_resolve::{
     ExtChannel, StyledText, create_signal_from_channel, run_command
 };
 use std::thread;
+use floem::kurbo::Point;
+use floem::window::WindowConfig;
 use tokio::process::Command;
 
 fn main() -> anyhow::Result<()> {
@@ -53,12 +50,13 @@ fn main() -> anyhow::Result<()> {
     // if let Err(err) = tast.join() {
     //     error!("{err:?}");
     // }
-    floem::launch(move || app_view(simple_doc));
+    let config = WindowConfig::default().position(Point::new(300.0, 300.));
+    Application::new().window(move |_| app_view(simple_doc), Some(config)).run();
     Ok(())
 }
 
 fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
-    let view = panel(simple_doc);
+    let view = panel(simple_doc).style(|x| x.width(600.).height(300.));
     let id = view.id();
     view.on_key_up(
         Key::Named(NamedKey::F11),

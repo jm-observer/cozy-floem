@@ -87,7 +87,7 @@ pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
             s.handle_thickness(handle_thickness).shrink_to_fit()
         })
         .style(move |x| {
-            x.width(300.0).height(300.0).border(1.0)
+            x.border(1.0)
             .padding_right(handle_thickness)
             // .margin_left(6.0)
             .padding_left(6.0)

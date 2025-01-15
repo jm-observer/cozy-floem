@@ -412,10 +412,10 @@ impl SimpleDoc {
             FamilyOwned::parse_list(&self.style.font_family)
                 .collect()
         );
-        debug!(
-            "last_line={last_line} old_line={old_line} content={}",
-            lines.content().len()
-        );
+        // debug!(
+        //     "last_line={last_line} old_line={old_line} content={}",
+        //     lines.content().len()
+        // );
         let mut delta = 0;
         let trim_str = ['\r', '\n'];
         for line_index in old_line..last_line {

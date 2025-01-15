@@ -1,6 +1,6 @@
 use ansi_to_style::{TextStyle, parse_byte};
 use anyhow::Result;
-use cargo_metadata::{CompilerMessage, Message};
+use cargo_metadata::{CompilerMessage, Message, PackageId};
 use cozy_floem::data::{Hyperlink, ranges_overlap};
 use floem::{
     ext_event::{
@@ -10,7 +10,7 @@ use floem::{
     reactive::{ReadSignal, Scope, with_scope},
     text::{Attrs, AttrsList, Style, Weight}
 };
-use log::{debug, warn};
+use log::{debug, info, warn};
 use parking_lot::Mutex;
 use std::{collections::VecDeque, ops::Range, sync::Arc};
 use tokio::{
@@ -74,37 +74,29 @@ pub async fn run_command(
     while let Some(message) = rx.recv().await {
         match message {
             OutputLine::StdOut(line) => {
-                // log::debug!("StdOut: {}",
-                //             line);
+                debug!("StdOut: {}", line);
                 if let Ok(parsed) =
                     serde_json::from_str::<Message>(&line)
                 {
                     match parsed {
                         Message::CompilerMessage(msg) => {
-                            debug!("Compiler Message: {}", line);
                             if let Some(rendered) =
                                 &msg.message.rendered
                             {
                                 let styled_text =
                                     parse_byte(rendered.as_bytes());
+                                let package_id = Some(msg.package_id.clone());
                                 let hyperlink =
                                     resolve_hyperlink_from_message(
                                         msg,
                                         styled_text.text.as_str()
                                     );
                                 channel.send(StyledText {
+                                    package_id,
                                     styled_text,
                                     hyperlink
                                 });
                             }
-                            // todo
-                            // log::debug!("Compiler Message: {}",
-                            // msg);
-                            // resolve_compiler_message(
-                            //     &msg,
-                            //     &style,
-                            //     &mut channel
-                            // );
                         },
                         Message::CompilerArtifact(_script) => {
                             // log::debug!("Compiler Artifact: {:?}",
@@ -130,8 +122,10 @@ pub async fn run_command(
                 }
             },
             OutputLine::StdErr(line) => {
+                log::debug!("StdErr: {}", line);
                 let styled_text = parse_byte(line.as_bytes());
                 channel.send(StyledText {
+                    package_id: None,
                     styled_text,
                     hyperlink: vec![]
                 });
@@ -140,6 +134,7 @@ pub async fn run_command(
     }
 
     child.wait().await?;
+    info!("child done");
     Ok(())
 }
 
@@ -219,6 +214,7 @@ impl<T: Send + Clone + 'static> ExtChannel<T> {
 
 #[derive(Clone)]
 pub struct StyledText {
+    pub package_id: Option<PackageId>,
     pub styled_text: ansi_to_style::StyledText,
     pub hyperlink:   Vec<Hyperlink>
 }
