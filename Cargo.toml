@@ -30,6 +30,8 @@ lapce-xi-rope = {workspace = true}
 doc = {workspace = true}
 anyhow = {workspace = true}
 tokio = "1.43.0"
+cargo_metadata = {workspace = true}
+ansi-to-style = {workspace = true}
 
 [dev-dependencies]
 custom-utils = {workspace = true}

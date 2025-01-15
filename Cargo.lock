@@ -840,6 +840,7 @@ version = "0.1.0"
 dependencies = [
  "ansi-to-style",
  "anyhow",
+ "cargo_metadata",
  "custom-utils",
  "doc",
  "floem",
@@ -3164,6 +3165,7 @@ dependencies = [
  "cozy-floem",
  "doc",
  "floem",
+ "lapce-xi-rope 0.3.2 (git+https://github.com/jm-observer/xi-editor.git)",
  "log",
  "parking_lot",
  "serde_json",

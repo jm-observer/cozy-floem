@@ -17,6 +17,10 @@ use floem::{
 use lapce_xi_rope::Rope;
 use log::{debug, error, info};
 use std::{borrow::Cow, cmp::Ordering, ops::Range};
+use std::collections::HashMap;
+use cargo_metadata::PackageId;
+use floem::text::{Style, Weight};
+use ansi_to_style::TextStyle;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Position {
@@ -366,7 +370,8 @@ impl SimpleDoc {
         self.visual_line.push(VisualLine {
             pos_y: self.height_of_line(line_index),
             line_index,
-            text_layout: TextLayoutLine { text, hyperlinks }
+            text_layout: TextLayoutLine { text, hyperlinks },
+            text_src: TextSrc::StdErr { level: ErrLevel::None },
         });
         self.hyperlink_regions.append(&mut hyperlink_region);
         self.id.request_layout();
@@ -390,14 +395,12 @@ impl SimpleDoc {
         lines: T
     ) -> Result<()> {
         let mut old_len = self.rope.len();
-        if old_len > 0 {
-            if self.rope.byte_at(old_len - 1) != '\n' as u8 {
+        if old_len > 0 && self.rope.byte_at(old_len - 1) != '\n' as u8 {
                 self.rope.edit(
                     old_len..old_len,
                     self.line_ending.get_chars()
                 );
                 old_len += self.line_ending.len();
-            }
         }
         self.rope
             .edit(self.rope.len()..self.rope.len(), lines.content());
@@ -418,6 +421,7 @@ impl SimpleDoc {
         // );
         let mut delta = 0;
         let trim_str = ['\r', '\n'];
+        let text_src = lines.src();
         for line_index in old_line..last_line {
             let start_offset =
                 self.rope.offset_of_line(line_index)?;
@@ -484,7 +488,8 @@ impl SimpleDoc {
             self.visual_line.push(VisualLine {
                 pos_y: self.height_of_line(line_index),
                 line_index,
-                text_layout: TextLayoutLine { text, hyperlinks }
+                text_layout: TextLayoutLine { text, hyperlinks },
+                text_src: text_src.clone(),
             });
             self.hyperlink_regions.append(&mut hyperlink_region);
             delta += end_offset - start_offset;
@@ -571,11 +576,12 @@ impl SimpleDoc {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VisualLine {
     pub pos_y:       f64,
     pub line_index:  usize,
-    pub text_layout: TextLayoutLine
+    pub text_layout: TextLayoutLine,
+    pub text_src: TextSrc,
 }
 
 #[derive(Clone, Debug)]
@@ -612,7 +618,7 @@ impl Hyperlink {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TextLayoutLine {
     pub hyperlinks: Vec<(Point, Point, Color)>,
     pub text:       TextLayout
@@ -644,6 +650,8 @@ pub fn ranges_overlap(
 }
 
 pub trait Styled {
+
+    fn src(&self) -> TextSrc;
     fn content(&self) -> &str;
     fn line_attrs(
         &self,
@@ -652,4 +660,238 @@ pub trait Styled {
         range: Range<usize>,
         delta: usize
     ) -> Vec<Hyperlink>;
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum TextSrc {
+    StdOut {
+        package_id: PackageId
+    },
+    StdErr {
+        level: ErrLevel
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ErrLevel {
+    None,
+    Error,
+}
+#[derive(Debug, Clone, Default)]
+pub enum DisplayStrategy {
+    #[default]
+    Viewport,
+    TextSrc(TextSrc),
+}
+
+#[derive(Clone)]
+pub struct StyledLines {
+    pub text_src: TextSrc,
+    pub lines: Vec<(String, Vec<TextStyle>, Vec<Hyperlink>)>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Lines {
+    pub rope:   Rope,
+    pub display_strategy: DisplayStrategy,
+    pub ropes: HashMap<TextSrc, Rope>,
+    pub visual_line: Vec<NewVisualLine>,
+}
+
+#[derive(Clone, Debug)]
+pub struct NewVisualLine {
+    pub pos_y:       f64,
+    pub line_index:  usize,
+    // pub text_layout: TextLayoutLine,
+    pub text_src: TextSrc,
+    pub hyperlink_regions: Vec<(Rect, Hyperlink)>,
+    pub hyperlinks: Vec<(Point, Point, Color)>,
+    pub text:       TextLayout
+}
+
+impl Lines {
+    pub fn display_all(&mut self) {
+        self.display_strategy = DisplayStrategy::Viewport
+    }
+    pub fn display_src(&mut self, text_src: TextSrc) {
+        self.display_strategy = DisplayStrategy::TextSrc(text_src);
+    }
+
+    fn display_by_viewport(&self, viewport: Rect, line_height: f64 ) -> &[NewVisualLine] {
+        let len = self.visual_line.len().max(1) - 1;
+        let min_line = ((viewport.y0 / line_height)
+            .floor() as usize)
+            .min(len);
+        let max_line = ((viewport.y1 / line_height)
+            .round() as usize)
+            .min(self.visual_line.len());
+        &self.visual_line[min_line..max_line]
+    }
+
+    pub fn visual_lines(&self, viewport: Rect, line_height: f64) -> Vec<NewVisualLine> {
+        match &self.display_strategy {
+            DisplayStrategy::Viewport => {
+                self.display_by_viewport(viewport, line_height).to_vec()
+            }
+            DisplayStrategy::TextSrc(text_src) => {
+                self.visual_line.iter().filter_map(|x| if x.text_src == *text_src {
+                    Some(x.clone())
+                } else {
+                    None
+                }).collect()
+            }
+        }
+    }
+
+    fn visual_lines_size(&self, viewport: Rect, line_height: f64) -> Size {
+        match &self.display_strategy {
+            DisplayStrategy::Viewport => {
+                let viewport_size = viewport.size();
+                let height = (self.visual_line.len() as f64
+                    * line_height
+                    + viewport.size().height / 4.0)
+                    .max(viewport_size.height);
+                let max_width = self
+                    .display_by_viewport(viewport, line_height)
+                    .iter()
+                    .fold(0., |x, line| {
+                        let width = line.text.size().width;
+                        if x < width { width } else { x }
+                    })
+                    .max(viewport.size().width);
+                Size::new(max_width, height)
+            }
+            DisplayStrategy::TextSrc(text_src) => {
+                let (len, max_width) = self.visual_line.iter().filter_map(|x| if x.text_src == *text_src {
+                    Some(x.text.size().width)
+                } else {
+                    None
+                }).fold((0., 0.), |(count, max_width), line_width| {
+                    (count + 1., if max_width < line_width { line_width } else { max_width })
+                });
+
+                let viewport_size = viewport.size();
+                let height = (len
+                    * line_height
+                    + viewport.size().height / 4.0)
+                    .max(viewport_size.height);
+                let max_width = max_width
+                    .max(viewport.size().width);
+                Size::new(max_width, height)
+            }
+        }
+    }
+}
+
+fn line_attrs(
+    attrs_list: &mut AttrsList,
+    default_attrs: Attrs,
+    x: TextStyle
+) {
+    let TextStyle {
+        range,
+        bold,
+        italic,
+        fg_color,
+        ..
+    } = x;
+    let mut attrs = default_attrs;
+    if bold {
+        attrs = attrs.weight(Weight::BOLD);
+    }
+    if italic {
+        attrs = attrs.style(Style::Italic);
+    }
+    if let Some(fg) = fg_color {
+        attrs = attrs.color(fg);
+    }
+    attrs_list.add_span(range, attrs);
+}
+
+pub fn append_lines(
+    rope: &mut Rope,
+    style_lines: StyledLines, line_ending: LineEnding, doc_style: &DocStyle
+) -> Result<()> {
+    // 新内容如果没有\n则会导致二者相等
+    let family = Cow::Owned(
+        FamilyOwned::parse_list(&doc_style.font_family)
+            .collect()
+    );
+    let mut old_len = rope.len();
+    let mut line_index = if old_len > 0 {
+        if rope.byte_at(old_len - 1) != '\n' as u8 {
+            rope.edit(
+                old_len..old_len,
+                line_ending.get_chars()
+            );
+            old_len += line_ending.len();
+        }
+        rope.line_of_offset(old_len)
+    } else {
+        0
+    };
+
+    for ( content_origin, style, hyperlink) in style_lines.lines.into_iter() {
+        let mut attrs_list =
+            AttrsList::new(doc_style.attrs(&family));
+        style.into_iter().for_each(|x| line_attrs(&mut attrs_list, doc_style.attrs(&family), x));
+
+
+        // todo update attrs_list
+        let mut font_system = FONT_SYSTEM.lock();
+        // let content = content_origin.trim_end_matches(&trim_str);
+        let text = TextLayout::new_with_font_system(
+            line_index,
+            content_origin,
+            attrs_list,
+            &mut font_system
+        );
+        let y = line_index as f64 * doc_style.line_height;
+        let points: Vec<(f64, f64, Hyperlink)> = hyperlink
+            .into_iter()
+            .map(|x| {
+                let range = x.range();
+                let x0 = text.hit_position(range.start).point.x;
+                let x1 = text.hit_position(range.end).point.x;
+                (x0, x1, x)
+            })
+            .collect();
+
+        // let hyperlinks: Vec<(Point, Point, Color)> = vec![];
+        let hyperlinks: Vec<(Point, Point, Color)> = points
+            .iter()
+            .map(|(x0, x1, _link)| {
+                (
+                    Point::new(*x0, y - 1.0),
+                    Point::new(*x1, y - 1.0),
+                    doc_style.fg_color
+                )
+            })
+            .collect();
+        let hyperlink_regions: Vec<(Rect, Hyperlink)> = points
+            .into_iter()
+            .map(|(x0, x1, data)| {
+                (
+                    Rect::new(
+                        x0,
+                        y - doc_style.line_height,
+                        x1,
+                        y
+                    ),
+                    data
+                )
+            })
+            .collect();
+        NewVisualLine {
+            pos_y: y,
+            line_index, text, hyperlinks,
+            text_src: style_lines.text_src.clone(),
+            hyperlink_regions
+        };
+        line_index += 1;
+    }
+    // debug!(
+    //     "last_line={last_line} old_line={old_line} content={}",
+    //     lines.content().len()
+    // );
+    Ok(())
 }

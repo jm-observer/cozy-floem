@@ -57,8 +57,8 @@ impl StyleState {
                 bold:      *bold,
                 italic:    *italic,
                 underline: *underline,
-                bg_color:  bg_color.clone(),
-                fg_color:  fg_color.clone()
+                bg_color:  *bg_color,
+                fg_color:  *fg_color
             },
             StyleState::Ref { end, .. } => {
                 *end = offset + 1;
@@ -447,17 +447,17 @@ pub fn index_to_rgb(index: u8) -> [u8; 3] {
             [51, 214, 214],
             [214, 214, 214]
         ];
-        return basic_colors[index as usize];
+        basic_colors[index as usize]
     } else if index >= 232 {
         // 灰度渐变
         let gray = (index - 232) * 10 + 8;
-        return [gray, gray, gray];
+        [gray, gray, gray]
     } else {
         // 彩色渐变
         let red = (index - 16) / 36 * 51;
         let green = ((index - 16) / 6) % 6 * 51;
         let blue = (index - 16) % 6 * 51;
-        return [red, green, blue];
+        [red, green, blue]
     }
 }
 

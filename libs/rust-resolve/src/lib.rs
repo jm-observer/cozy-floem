@@ -1,7 +1,7 @@
 use ansi_to_style::{TextStyle, parse_byte};
 use anyhow::Result;
 use cargo_metadata::{CompilerMessage, Message, PackageId};
-use cozy_floem::data::{Hyperlink, ranges_overlap};
+use cozy_floem::data::{ErrLevel, Hyperlink, ranges_overlap, StyledLines, TextSrc};
 use floem::{
     ext_event::{
         ExtSendTrigger, create_ext_action, register_ext_trigger
@@ -13,6 +13,7 @@ use floem::{
 use log::{debug, info, warn};
 use parking_lot::Mutex;
 use std::{collections::VecDeque, ops::Range, sync::Arc};
+use lapce_xi_rope::Rope;
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
@@ -85,14 +86,14 @@ pub async fn run_command(
                             {
                                 let styled_text =
                                     parse_byte(rendered.as_bytes());
-                                let package_id = Some(msg.package_id.clone());
+                                let package_id = msg.package_id.clone();
                                 let hyperlink =
                                     resolve_hyperlink_from_message(
                                         msg,
                                         styled_text.text.as_str()
                                     );
                                 channel.send(StyledText {
-                                    package_id,
+                                    text_src: TextSrc::StdOut { package_id },
                                     styled_text,
                                     hyperlink
                                 });
@@ -124,8 +125,12 @@ pub async fn run_command(
             OutputLine::StdErr(line) => {
                 log::debug!("StdErr: {}", line);
                 let styled_text = parse_byte(line.as_bytes());
+                let mut level = ErrLevel::None;
+                if styled_text.text.as_str().trim_start().starts_with("error") {
+                    level = ErrLevel::Error;
+                }
                 channel.send(StyledText {
-                    package_id: None,
+                    text_src: TextSrc::StdErr { level },
                     styled_text,
                     hyperlink: vec![]
                 });
@@ -214,24 +219,70 @@ impl<T: Send + Clone + 'static> ExtChannel<T> {
 
 #[derive(Clone)]
 pub struct StyledText {
-    pub package_id: Option<PackageId>,
+    pub text_src: TextSrc,
     pub styled_text: ansi_to_style::StyledText,
     pub hyperlink:   Vec<Hyperlink>
 }
 
 impl StyledText {
-    pub fn test_line_attrs(&self, range: Range<usize>) {
-        self.styled_text.styles.iter().for_each(|x| {
-            if let Some(delta_range) =
-                ranges_overlap(&x.range, &range)
-            {
-                debug!("delta_range={delta_range:?}, style: {x:?}");
-            }
-        });
+    pub fn to_lines(self) -> Result<StyledLines> {
+        let rope: Rope = self.styled_text.text.into();
+        let last_line = rope.line_of_offset(rope.len()).max(1);
+        let trim_str = ['\r', '\n'];
+        //styles: Vec<(String, Vec<TextStyle>, Vec<Hyperlink>)>,
+        let mut lines = Vec::with_capacity(last_line);
+        for line in 0..last_line {
+            let start_offset = rope.offset_of_line(line)?;
+            let end_offset = rope.offset_of_line(line + 1)?;
+            let content_origin =
+                rope.slice_to_cow(start_offset..end_offset);
+            let content = content_origin.trim_end_matches(&trim_str);
+            let range = start_offset..start_offset + content.len();
+            let links = self.hyperlink.iter().filter_map(|x| {
+                if let Some(delta_range) =
+                    ranges_overlap(&x.range(), &range)
+                {
+                    let mut link = x.clone();
+                    link.range_mut(delta_range);
+                    Some(link)
+                } else {
+                    None
+                }
+            }).collect();
+
+            let styles = self.styled_text.styles.iter().filter_map(|x| {
+                if let Some(delta_range) =
+                    ranges_overlap(&x.range, &range)
+                {
+                    Some(TextStyle {
+                        range: delta_range,
+                        bold: x.bold,
+                        italic: x.italic,
+                        underline: x.underline,
+                        bg_color: x.bg_color,
+                        fg_color: x.fg_color,
+                    })
+                } else {
+                    None
+                }
+            }).collect();
+
+            lines.push((content.to_string(), styles, links));
+        }
+        Ok(StyledLines {
+            text_src: self.text_src,
+            lines,
+        })
     }
 }
 
+
+
 impl cozy_floem::data::Styled for StyledText {
+    fn src(&self) -> TextSrc {
+        self.text_src.clone()
+    }
+
     fn content(&self) -> &str {
         &self.styled_text.text
     }
