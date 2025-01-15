@@ -237,6 +237,7 @@ impl SimpleDoc {
         else {
             return Ok(None);
         };
+        // debug!("position_of_cursor offset={offset}, point={point:?}, line={_line}");
         let rect = Rect::from_origin_size(
             (point.x - 1.0, point.y),
             (2.0, self.style.line_height)
@@ -402,7 +403,11 @@ impl SimpleDoc {
             .edit(self.rope.len()..self.rope.len(), lines.content());
 
         let old_line = self.rope.line_of_offset(old_len);
-        let last_line = self.rope.line_of_offset(self.rope.len());
+        let mut last_line = self.rope.line_of_offset(self.rope.len());
+        // 新内容如果没有\n则会导致二者相等
+        if last_line == old_line {
+            last_line += 1;
+        }
         let family = Cow::Owned(
             FamilyOwned::parse_list(&self.style.font_family)
                 .collect()
