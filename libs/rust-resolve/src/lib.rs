@@ -74,7 +74,7 @@ pub async fn run_command(
     while let Some(message) = rx.recv().await {
         match message {
             OutputLine::StdOut(line) => {
-                debug!("StdOut: {}", line);
+                // debug!("StdOut: {}", line);
                 if let Ok(parsed) =
                     serde_json::from_str::<Message>(&line)
                 {
@@ -122,7 +122,7 @@ pub async fn run_command(
                 }
             },
             OutputLine::StdErr(line) => {
-                log::debug!("StdErr: {}", line);
+                // log::debug!("StdErr: {}", line);
                 let styled_text = parse_byte(line.as_bytes());
                 let mut level = ErrLevel::None;
                 if styled_text.text.as_str().trim_start().starts_with("error") {

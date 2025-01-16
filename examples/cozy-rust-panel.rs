@@ -1,11 +1,11 @@
 use cozy_floem::{data::SimpleDoc, view::panel};
 use floem::{View, ViewId, keyboard::{Key, NamedKey}, prelude::{
     Decorators, RwSignal, SignalGet, SignalUpdate,
-    create_rw_signal
+    create_rw_signal,
 }, reactive::Scope, Application};
 use log::{LevelFilter::Info, error};
 use rust_resolve::{
-    ExtChannel, create_signal_from_channel, run_command
+    ExtChannel, create_signal_from_channel, run_command,
 };
 use std::thread;
 use floem::kurbo::Point;
@@ -16,12 +16,11 @@ use cozy_floem::data::StyledText;
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
         "panel",
-        "error,rust_resolve=debug,cozy_rust_panel=debug,\
-         cozy_floem=debug",
+        "warn,rust_resolve=debug,cozy_rust_panel=debug,cozy_floem=debug",
         Info,
-        false
+        false,
     )
-    .build();
+        .build();
 
     let cx = Scope::new();
     let (read_signal, channel, send) =
@@ -62,7 +61,7 @@ fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
     view.on_key_up(
         Key::Named(NamedKey::F11),
         |m| m.is_empty(),
-        move |_| id.inspect()
+        move |_| id.inspect(),
     )
 }
 
@@ -72,6 +71,7 @@ pub async fn run(channel: ExtChannel<StyledText>) {
         error!("{:?}", err);
     }
 }
+
 async fn _run(channel: ExtChannel<StyledText>) -> anyhow::Result<()> {
     let mut command = Command::new("cargo");
     command.args([

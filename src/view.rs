@@ -153,7 +153,7 @@ impl View for EditorView {
     }
 
     fn paint(&mut self, cx: &mut PaintCx) {
-        debug!("paint");
+        // debug!("paint");
         let (viewport, lines, position_of_cursor, selections, style) =
             self.doc.with_untracked(|x| {
                 (
