@@ -229,7 +229,7 @@ fn resolve_hyperlink_from_message(
     msg: CompilerMessage,
     text: &str
 ) -> Vec<Hyperlink> {
-    let file_hyper: Vec<Hyperlink> = msg
+    let mut file_hyper: Vec<Hyperlink> = msg
         .message
         .spans
         .into_iter()
@@ -251,19 +251,18 @@ fn resolve_hyperlink_from_message(
             }
         })
         .collect();
-    // todo
-    // if let Some(code_hyper) = msg.message.code.and_then(|x| {
-    //     if let Some(index) = text.find(x.code.as_str()) {
-    //         Some(Hyperlink::Url {
-    //             range: index..index + x.code.len(),
-    //             // todo
-    //             url:   "".to_string()
-    //         })
-    //     } else {
-    //         None
-    //     }
-    // }) {
-    //     file_hyper.push(code_hyper)
-    // }
+    if let Some(code_hyper) = msg.message.code.and_then(|x| {
+        if let Some(index) = text.find(x.code.as_str()) {
+            Some(Hyperlink::Url {
+                range: index..index + x.code.len(),
+                // todo
+                url:   "".to_string()
+            })
+        } else {
+            None
+        }
+    }) {
+        file_hyper.push(code_hyper)
+    }
     file_hyper
 }

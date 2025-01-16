@@ -733,16 +733,29 @@ pub struct StyledLines {
 pub struct Lines {
     pub rope:             Rope,
     pub display_strategy: DisplayStrategy,
-    pub ropes:            HashMap<TextSrc, (Rope, Vec<SimpleLine>)>,
+    pub ropes:            HashMap<TextSrc, (Rope, Vec<SimpleLine>, Vec<SimpleHyperlink>)>,
     pub visual_line:      Vec<SimpleLine>,
-    pub hyperlinks:       Vec<(f64, f64, Hyperlink)>,
-    pub text:             Vec<TextLayout>
+    pub visual_links:      Vec<SimpleHyperlink>,
+    pub hyperlinks:       Vec<Hyperlink>,
+    pub texts:             Vec<TextLayout>
+}
+
+#[derive(Clone, Debug)]
+pub struct SimpleHyperlink {
+    pub rect: Rect,
+    pub link_index: usize
+}
+
+impl SimpleHyperlink {
+    pub fn underline(&self) -> (Point, Point) {
+        (Point::new(self.rect.x0, self.rect.y1 - 2.0), Point::new(self.rect.x1, self.rect.y1 - 2.0))
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct SimpleLine {
     pub line_index: usize,
-    pub hyperlinks: Range<usize>,
+    pub hyperlinks: Vec<(Point, Point)>,
     pub text_index: usize
 }
 
@@ -769,7 +782,7 @@ impl Lines {
             DisplayStrategy::TextSrc(src) => self
                 .ropes
                 .get(src)
-                .map(|(rope, _lines)| rope)
+                .map(|(rope, _lines, _link)| rope)
                 .unwrap_or(&self.rope)
         }
     }
@@ -788,18 +801,19 @@ impl Lines {
         &lines[min_line..max_line]
     }
 
-    fn line_info(&self) -> (&Rope, &[SimpleLine]) {
+
+    fn line_info(&self) -> (&Rope, &[SimpleLine], &[SimpleHyperlink]) {
         match &self.display_strategy {
             DisplayStrategy::Viewport => {
-                (&self.rope, &self.visual_line)
+                (&self.rope, &self.visual_line, &self.visual_links)
             },
             DisplayStrategy::TextSrc(text_src) => {
-                let Some((rope, line)) = self.ropes.get(text_src)
+                let Some((rope, line, link)) = self.ropes.get(text_src)
                 else {
                     error!("not found {:?}", text_src);
-                    return (&self.rope, &self.visual_line);
+                    return (&self.rope, &self.visual_line, &self.visual_links);
                 };
-                (rope, line)
+                (rope, line, link)
             }
         }
     }
@@ -816,35 +830,18 @@ impl Lines {
     ) -> Vec<VisualLine> {
         self.display_simple_lines(viewport, line_height)
             .iter()
-            .filter_map(|x| {
+            .filter_map(|x | {
                 let pos_y: f64 = x.line_index as f64 * line_height;
 
                 let hyperlinks = x
                     .hyperlinks
                     .clone()
                     .into_iter()
-                    .filter_map(|x| {
-                        if let Some((x0, x1, _link)) =
-                            self.hyperlinks.get(x)
-                        {
-                            Some((
-                                Point::new(
-                                    *x0,
-                                    pos_y + line_height - 2.0
-                                ),
-                                Point::new(
-                                    *x1,
-                                    pos_y + line_height - 2.0
-                                ),
-                                hyper_color
-                            ))
-                        } else {
-                            warn!("not found hyperlink: {}", x);
-                            None
-                        }
+                    .map(|x| {
+                        (x.0, x.1, hyper_color)
                     })
                     .collect();
-                if let Some(text) = self.text.get(x.text_index) {
+                if let Some(text) = self.texts.get(x.text_index) {
                     Some(VisualLine {
                         pos_y,
                         line_index: x.line_index,
@@ -895,7 +892,7 @@ impl Lines {
         line: usize
     ) -> Option<&TextLayout> {
         let line_index = self.line_info().1.get(line);
-        line_index.and_then(|index| self.text.get(index.text_index))
+        line_index.and_then(|index| self.texts.get(index.text_index))
     }
 
     pub fn point_of_offset(
@@ -917,9 +914,9 @@ impl Lines {
         Ok(Some((point, line, offset_line)))
     }
 
-    fn push_src(&mut self, text_src: &TextSrc, content_origin_without_lf: String, text_index: usize, hyperlinks: Range<usize>,
-                line_ending: LineEnding,) {
-        let (rope, lines) = self.ropes.entry(text_src.clone()).or_default();
+    fn push_src(&mut self, text_src: &TextSrc, content_origin_without_lf: String, text_index: usize, hyperlink: &[Hyperlink],
+                line_ending: LineEnding, text: &TextLayout, line_height: f64) {
+        let (rope, lines, links) = self.ropes.entry(text_src.clone()).or_default();
         let mut old_len = rope.len();
         let line_index = if old_len > 0 {
             rope.line_of_offset(old_len)
@@ -935,11 +932,35 @@ impl Lines {
             rope
                 .edit(old_len..old_len, line_ending.get_chars());
         }
+
+        let start = links.len();
+        let (underlines, mut simple_link): (Vec<(Point, Point)>, Vec<SimpleHyperlink>) =
+            hyperlink
+                .iter()
+                .map(|x| {
+                    let range = x.range();
+                    let x0 =
+                        text.hit_position(range.start).point.x;
+                    let x1 = text.hit_position(range.end).point.x;
+                    let y0 = line_index as f64 * line_height;
+                    let y1 = (line_index + 1) as f64 * line_height;
+                    let under_line_y = (line_index + 1) as f64 * line_height - 2.0;
+                    (Point::new(x0, under_line_y), Point::new(x1, under_line_y), Rect::new(x0, y0, x1, y1))
+                }).enumerate().fold((Vec::with_capacity(hyperlink.len()), Vec::with_capacity(hyperlink.len())), |(mut underlines, mut simple_link), (index, x)| {
+                underlines.push((x.0, x.1));
+
+                simple_link.push(SimpleHyperlink {
+                    rect: x.2,
+                    link_index: start + index,
+                });
+                (underlines, simple_link)
+            });
         let _line = SimpleLine {
             line_index,
             text_index,
-            hyperlinks
+            hyperlinks: underlines
         };
+        links.append(&mut simple_link);
         lines.push(_line);
     }
 
@@ -960,7 +981,7 @@ impl Lines {
             0
         };
         let text_src = style_lines.text_src;
-        for (content_origin_without_lf, style, hyperlink) in
+        for (content_origin_without_lf, style, mut hyperlink) in
             style_lines.lines.into_iter()
         {
 
@@ -990,39 +1011,43 @@ impl Lines {
                 attrs_list,
                 &mut font_system
             );
-            let mut hyperlinks: Vec<(f64, f64, Hyperlink)> =
+
+            let text_index = self.texts.len();
+            let start = self.hyperlinks.len();
+            let (underlines, mut simple_link): (Vec<(Point, Point)>, Vec<SimpleHyperlink>) =
                 hyperlink
-                    .into_iter()
+                    .iter()
                     .map(|x| {
                         let range = x.range();
                         let x0 =
                             text.hit_position(range.start).point.x;
                         let x1 = text.hit_position(range.end).point.x;
-                        (x0, x1, x)
-                    })
-                    .collect();
-            let text_index = self.text.len();
-            let start = self.hyperlinks.len();
-            let hyperlink_range = start..start + hyperlinks.len();
-            // if hyperlinks.len() > 0 {
-            //     error!(
-            //         "line={line_index} {:?} {:?} {}",
-            //         hyperlinks,
-            //         hyperlink_range,
-            //         hyperlink_range.len()
-            //     );
-            // }
-            self.hyperlinks.append(&mut hyperlinks);
-            self.text.push(text);
+                        let y0 = line_index as f64 * doc_style.line_height;
+                        let y1 = (line_index + 1) as f64 * doc_style.line_height;
+                        let under_line_y = (line_index + 1) as f64 * doc_style.line_height - 2.0;
+                        (Point::new(x0, under_line_y), Point::new(x1, under_line_y), Rect::new(x0, y0, x1, y1))
+                    }).enumerate().fold((Vec::with_capacity(hyperlink.len()), Vec::with_capacity(hyperlink.len())), |(mut underlines, mut simple_link), (index, x)| {
+                    underlines.push((x.0, x.1));
+
+                    simple_link.push(SimpleHyperlink {
+                        rect: x.2,
+                        link_index: start + index,
+                    });
+                    (underlines, simple_link)
+                });
+
             let _line = SimpleLine {
                 line_index,
                 text_index,
-                hyperlinks: hyperlink_range.clone(),
+                hyperlinks: underlines,
             };
             self.visual_line.push(_line);
+            self.visual_links.append(&mut simple_link);
             if let Some(text_src) = &text_src {
-                self.push_src(&text_src, content_origin_without_lf, text_index, hyperlink_range, line_ending);
+                self.push_src(&text_src, content_origin_without_lf, text_index, &hyperlink, line_ending, &text, doc_style.line_height);
             }
+            self.texts.push(text);
+            self.hyperlinks.append(&mut hyperlink);
             // let hyperlinks: Vec<(Point, Point, Color)> = vec![];
             // let hyperlinks: Vec<(Point, Point, Color)> = points
             //     .iter()
