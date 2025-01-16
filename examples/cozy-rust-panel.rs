@@ -74,22 +74,11 @@ fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
             .style(|x| x.width(50.).height(50.))
             .on_click_stop(move |_| {
                 simple_doc.update(|x| {
-                    let src = match &x
-                        .lines
-                        .display_strategy
-                    {
+                    let src = match &x.lines.display_strategy {
                         DisplayStrategy::Viewport => {
-                            if let Some(item) =
-                                x.lines.ropes.keys().nth(0)
-                            {
-                                Some(item.clone())
-                            } else {
-                                None
-                            }
+                            x.lines.ropes.keys().next().cloned()
                         },
-                        DisplayStrategy::TextSrc(_) => {
-                            None
-                        },
+                        DisplayStrategy::TextSrc(_) => None
                     };
                     x.update_display(src);
                 });

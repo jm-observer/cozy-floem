@@ -1,15 +1,13 @@
-use ansi_to_style::{parse_byte};
+use ansi_to_style::parse_byte;
 use anyhow::Result;
 use cargo_metadata::{CompilerMessage, Message};
-use cozy_floem::data::{
-    ErrLevel, Hyperlink, StyledText, TextSrc,
-};
+use cozy_floem::data::{ErrLevel, Hyperlink, StyledText, TextSrc};
 use floem::{
     ext_event::{
         ExtSendTrigger, create_ext_action, register_ext_trigger
     },
     prelude::{SignalGet, SignalUpdate},
-    reactive::{ReadSignal, Scope, with_scope},
+    reactive::{ReadSignal, Scope, with_scope}
 };
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -135,7 +133,9 @@ pub async fn run_command(
                     .trim_start()
                     .starts_with("error")
                 {
-                    text_src = Some(TextSrc::StdErr {level:ErrLevel::Error});
+                    text_src = Some(TextSrc::StdErr {
+                        level: ErrLevel::Error
+                    });
                 }
                 channel.send(StyledText {
                     text_src,
