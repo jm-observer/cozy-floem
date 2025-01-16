@@ -5,12 +5,13 @@ use floem::{View, ViewId, keyboard::{Key, NamedKey}, prelude::{
 }, reactive::Scope, Application};
 use log::{LevelFilter::Info, error};
 use rust_resolve::{
-    ExtChannel, StyledText, create_signal_from_channel, run_command
+    ExtChannel, create_signal_from_channel, run_command
 };
 use std::thread;
 use floem::kurbo::Point;
 use floem::window::WindowConfig;
 use tokio::process::Command;
+use cozy_floem::data::StyledText;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(

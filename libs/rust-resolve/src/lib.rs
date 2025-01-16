@@ -1,7 +1,7 @@
 use ansi_to_style::{TextStyle, parse_byte};
 use anyhow::Result;
-use cargo_metadata::{CompilerMessage, Message, PackageId};
-use cozy_floem::data::{ErrLevel, Hyperlink, ranges_overlap, StyledLines, TextSrc};
+use cargo_metadata::{CompilerMessage, Message};
+use cozy_floem::data::{ErrLevel, Hyperlink, ranges_overlap, StyledLines, StyledText, TextSrc};
 use floem::{
     ext_event::{
         ExtSendTrigger, create_ext_action, register_ext_trigger
@@ -12,8 +12,7 @@ use floem::{
 };
 use log::{debug, info, warn};
 use parking_lot::Mutex;
-use std::{collections::VecDeque, ops::Range, sync::Arc};
-use lapce_xi_rope::Rope;
+use std::{collections::VecDeque, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
@@ -217,127 +216,6 @@ impl<T: Send + Clone + 'static> ExtChannel<T> {
 //     }
 // }
 
-#[derive(Clone)]
-pub struct StyledText {
-    pub text_src: TextSrc,
-    pub styled_text: ansi_to_style::StyledText,
-    pub hyperlink:   Vec<Hyperlink>
-}
-
-impl StyledText {
-    pub fn to_lines(self) -> Result<StyledLines> {
-        let rope: Rope = self.styled_text.text.into();
-        let last_line = rope.line_of_offset(rope.len()).max(1);
-        let trim_str = ['\r', '\n'];
-        //styles: Vec<(String, Vec<TextStyle>, Vec<Hyperlink>)>,
-        let mut lines = Vec::with_capacity(last_line);
-        for line in 0..last_line {
-            let start_offset = rope.offset_of_line(line)?;
-            let end_offset = rope.offset_of_line(line + 1)?;
-            let content_origin =
-                rope.slice_to_cow(start_offset..end_offset);
-            let content = content_origin.trim_end_matches(&trim_str);
-            let range = start_offset..start_offset + content.len();
-            let links = self.hyperlink.iter().filter_map(|x| {
-                if let Some(delta_range) =
-                    ranges_overlap(&x.range(), &range)
-                {
-                    let mut link = x.clone();
-                    link.range_mut(delta_range);
-                    Some(link)
-                } else {
-                    None
-                }
-            }).collect();
-
-            let styles = self.styled_text.styles.iter().filter_map(|x| {
-                if let Some(delta_range) =
-                    ranges_overlap(&x.range, &range)
-                {
-                    Some(TextStyle {
-                        range: delta_range,
-                        bold: x.bold,
-                        italic: x.italic,
-                        underline: x.underline,
-                        bg_color: x.bg_color,
-                        fg_color: x.fg_color,
-                    })
-                } else {
-                    None
-                }
-            }).collect();
-
-            lines.push((content.to_string(), styles, links));
-        }
-        Ok(StyledLines {
-            text_src: self.text_src,
-            lines,
-        })
-    }
-}
-
-
-
-impl cozy_floem::data::Styled for StyledText {
-    fn src(&self) -> TextSrc {
-        self.text_src.clone()
-    }
-
-    fn content(&self) -> &str {
-        &self.styled_text.text
-    }
-
-    fn line_attrs(
-        &self,
-        attrs_list: &mut AttrsList,
-        default_attrs: Attrs,
-        range: Range<usize>,
-        delta: usize
-    ) -> Vec<Hyperlink> {
-        self.styled_text.styles.iter().for_each(|x| {
-            if let Some(delta_range) =
-                ranges_overlap(&x.range, &range)
-            {
-                let TextStyle {
-                    bold,
-                    italic,
-                    fg_color,
-                    ..
-                } = x;
-                let mut attrs = default_attrs;
-                if *bold {
-                    attrs = attrs.weight(Weight::BOLD);
-                }
-                if *italic {
-                    attrs = attrs.style(Style::Italic);
-                }
-                if let Some(fg) = fg_color {
-                    attrs = attrs.color(*fg);
-                }
-                let range = delta_range.start - delta
-                    ..delta_range.end - delta;
-                // debug!("delta_range={range:?}, style: {x:?}");
-                attrs_list.add_span(range, attrs);
-            }
-        });
-        self.hyperlink
-            .iter()
-            .filter_map(|x| {
-                if let Some(delta_range) =
-                    ranges_overlap(&x.range(), &range)
-                {
-                    let range = delta_range.start - delta
-                        ..delta_range.end - delta;
-                    let mut x = x.clone();
-                    x.range_mut(range);
-                    Some(x)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-}
 
 fn resolve_hyperlink_from_message(
     msg: CompilerMessage,
@@ -365,18 +243,19 @@ fn resolve_hyperlink_from_message(
             }
         })
         .collect();
-    if let Some(code_hyper) = msg.message.code.and_then(|x| {
-        if let Some(index) = text.find(x.code.as_str()) {
-            Some(Hyperlink::Url {
-                range: index..index + x.code.len(),
-                // todo
-                url:   "".to_string()
-            })
-        } else {
-            None
-        }
-    }) {
-        file_hyper.push(code_hyper)
-    }
+    // todo
+    // if let Some(code_hyper) = msg.message.code.and_then(|x| {
+    //     if let Some(index) = text.find(x.code.as_str()) {
+    //         Some(Hyperlink::Url {
+    //             range: index..index + x.code.len(),
+    //             // todo
+    //             url:   "".to_string()
+    //         })
+    //     } else {
+    //         None
+    //     }
+    // }) {
+    //     file_hyper.push(code_hyper)
+    // }
     file_hyper
 }

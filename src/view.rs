@@ -12,7 +12,7 @@ use floem::{
     taffy::NodeId,
     views::scroll
 };
-use log::error;
+use log::{debug, error};
 
 pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
     let (hover_hyperlink, id) =
@@ -153,14 +153,13 @@ impl View for EditorView {
     }
 
     fn paint(&mut self, cx: &mut PaintCx) {
+        debug!("paint");
         let (viewport, lines, position_of_cursor, selections, style) =
             self.doc.with_untracked(|x| {
                 (
                     x.viewport,
                     x.viewport_lines()
-                        .iter()
-                        .map(|x| x.clone())
-                        .collect::<Vec<VisualLine>>(),
+                        ,
                     x.position_of_cursor(),
                     x.select_of_cursor(),
                     x.style.clone()
@@ -194,11 +193,10 @@ impl View for EditorView {
         }
         for line_info in lines {
             let y = line_info.pos_y;
-            let text_layout = line_info.text_layout;
             // debug!("line_index={} y={y} ", line_info.line_index);
-            paint_extra_style(cx, &text_layout.hyperlinks);
+            paint_extra_style(cx, &line_info.hyperlinks);
             cx.draw_text_with_layout(
-                text_layout.text.layout_runs(),
+                line_info.text.layout_runs(),
                 Point::new(0.0, y)
             );
         }
