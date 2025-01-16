@@ -556,8 +556,7 @@ impl SimpleDoc {
     }
 
     pub fn view_size(&self) -> Size {
-        self
-            .lines
+        self.lines
             .visual_lines_size(self.viewport, self.style.line_height)
     }
 

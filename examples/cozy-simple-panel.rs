@@ -1,5 +1,6 @@
+use ansi_to_style::TextStyle;
 use cozy_floem::{
-    data::{Hyperlink, Line, SimpleDoc},
+    data::{SimpleDoc, StyledText},
     view::panel
 };
 use floem::{
@@ -13,7 +14,7 @@ use floem::{
     reactive::Scope,
     text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight}
 };
-use log::LevelFilter::Info;
+use log::{LevelFilter::Info, error};
 use rust_resolve::{ExtChannel, create_signal_from_channel};
 use std::{borrow::Cow, thread, time::Duration};
 
@@ -28,7 +29,7 @@ fn main() -> anyhow::Result<()> {
 
     let cx = Scope::new();
     let (read_signal, channel, send) =
-        create_signal_from_channel::<Line>(cx);
+        create_signal_from_channel::<StyledText>(cx);
 
     let hover_hyperlink = create_rw_signal(None);
     let doc = SimpleDoc::new(ViewId::new(), hover_hyperlink);
@@ -37,7 +38,9 @@ fn main() -> anyhow::Result<()> {
     cx.create_effect(move |_| {
         if let Some(line) = read_signal.get() {
             simple_doc.update(|x| {
-                x.append_line(line);
+                if let Err(err) = x.append_lines(line) {
+                    error!("{err:?}");
+                }
             });
         }
     });
@@ -62,7 +65,7 @@ fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
     )
 }
 
-pub(crate) fn init_content(mut channel: ExtChannel<Line>) {
+pub(crate) fn init_content(mut channel: ExtChannel<StyledText>) {
     let family = Cow::Owned(
         FamilyOwned::parse_list("JetBrains Mono").collect()
     );
@@ -84,18 +87,23 @@ pub(crate) fn init_content(mut channel: ExtChannel<Line>) {
     for i in 0..20 {
         let content = format!(
             "{}-{}",
-            i,
-            "   Compiling icu_collections v1.5.0         1234567890"
+            "   Compiling icu_collections v1.5.0         1234567890",
+            i
         );
-        let line = Line {
-            content,
-            attrs_list: attr_list.clone(),
-            hyperlink: vec![Hyperlink::File {
-                range:  3..12,
-                src:    "".to_string(),
-                line:   0,
-                column: None
-            }]
+        let line = StyledText {
+            text_src:    None,
+            styled_text: ansi_to_style::StyledText {
+                text:   content,
+                styles: vec![TextStyle {
+                    range:     3..12,
+                    bold:      true,
+                    italic:    false,
+                    underline: false,
+                    bg_color:  None,
+                    fg_color:  Some(Color::rgba8(214, 214, 51, 255))
+                }]
+            },
+            hyperlink:   vec![]
         };
         channel.send(line);
         thread::sleep(Duration::from_millis(800));

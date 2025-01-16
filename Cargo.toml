@@ -1,5 +1,5 @@
 [workspace]
-members = [ ".", "examples/simple-ansi-to-style", "libs/ansi-to-style", "libs/rust-resolve"]
+members = [ ".", "examples/simple-ansi-to-style", "examples/folding-svg","libs/ansi-to-style", "libs/rust-resolve"]
 resolver = "2"
 
 

@@ -56,7 +56,7 @@ fn main() {
         121, 32, 100, 101, 102, 97, 117, 108, 116, 27, 91, 48, 109,
         10, 10
     ];
-    /**
+    /*
     warning: unused variable: `input`
     --> src/main.rs:2:9
         |
@@ -64,7 +64,7 @@ fn main() {
     |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_input`
     |
     = note: `#[warn(unused_variables)]` on by default
-        **/
+        */
     //     "\u{1b}[0m\u{1b}[1m\u{1b}[38;5;11mwarning\u{1b}[0m\
     // u{1b}[0m\u{1b}[1m\u{1b}[38;5;15m: unused variable:
     // `input`\u{1b}[0m\n \u{1b}[0m \u{1b}[0m\u{1b}[0m\u{1b}[1m\

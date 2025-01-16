@@ -1,4 +1,7 @@
-use cozy_floem::{data::SimpleDoc, view::panel};
+use cozy_floem::{
+    data::{SimpleDoc, StyledText},
+    view::panel
+};
 use floem::{
     Application, View, ViewId,
     keyboard::{Key, NamedKey},

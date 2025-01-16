@@ -54,30 +54,33 @@ fn main() {
 
 fn svg_str(svg_name: &str) -> String {
     match svg_name {
-        "folded-start" => {
-            fs::read_to_string("../../../resources/svg/folding-start.svg")
-                .unwrap()
-        },
-        "folded" => {
-            fs::read_to_string("../../../resources/svg/folding-folded.svg")
-                .unwrap()
-        },
-        "folded-end" => {
-            fs::read_to_string("../../../resources/svg/folding-end.svg")
-                .unwrap()
-        },
-        "other" => {
-            fs::read_to_string("../../../resources/svg/folding-compare.svg")
-                .unwrap()
-        },
+        "folded-start" => fs::read_to_string(
+            "resources/svg/folding-start.svg"
+        )
+        .unwrap(),
+        "folded" => fs::read_to_string(
+            "resources/svg/folding-folded.svg"
+        )
+        .unwrap(),
+        "folded-end" => fs::read_to_string(
+            "resources/svg/folding-end.svg"
+        )
+        .unwrap(),
+        "other" => fs::read_to_string(
+            "resources/svg/folding-compare.svg"
+        )
+        .unwrap(),
         "start" => {
-            fs::read_to_string("../../../resources/svg/start.svg").unwrap()
+            fs::read_to_string("resources/svg/start.svg")
+                .unwrap()
         },
         "start-big" => {
-            fs::read_to_string("../../../resources/svg/start-big.svg").unwrap()
+            fs::read_to_string("resources/svg/start-big.svg")
+                .unwrap()
         },
         "debug" => {
-            fs::read_to_string("../../../resources/svg/debug.svg").unwrap()
+            fs::read_to_string("resources/svg/debug.svg")
+                .unwrap()
         },
         _ => {
             panic!()
