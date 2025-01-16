@@ -1,26 +1,35 @@
-use cozy_floem::{data::SimpleDoc, view::panel};
-use floem::{View, ViewId, keyboard::{Key, NamedKey}, prelude::{
-    Decorators, RwSignal, SignalGet, SignalUpdate,
-    create_rw_signal,
-}, reactive::Scope, Application};
+use cozy_floem::{
+    data::{DisplayStrategy, SimpleDoc, StyledText},
+    view::panel
+};
+use floem::{
+    Application, View, ViewId,
+    keyboard::{Key, NamedKey},
+    kurbo::Point,
+    prelude::{
+        Decorators, RwSignal, SignalGet, SignalUpdate,
+        create_rw_signal
+    },
+    reactive::Scope,
+    views::{stack, static_label},
+    window::WindowConfig
+};
 use log::{LevelFilter::Info, error};
 use rust_resolve::{
-    ExtChannel, create_signal_from_channel, run_command,
+    ExtChannel, create_signal_from_channel, run_command
 };
 use std::thread;
-use floem::kurbo::Point;
-use floem::window::WindowConfig;
 use tokio::process::Command;
-use cozy_floem::data::StyledText;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
         "panel",
-        "warn,rust_resolve=debug,cozy_rust_panel=debug,cozy_floem=debug",
+        "warn,rust_resolve=debug,cozy_rust_panel=debug,\
+         cozy_floem=debug",
         Info,
-        false,
+        false
     )
-        .build();
+    .build();
 
     let cx = Scope::new();
     let (read_signal, channel, send) =
@@ -50,18 +59,48 @@ fn main() -> anyhow::Result<()> {
     // if let Err(err) = tast.join() {
     //     error!("{err:?}");
     // }
-    let config = WindowConfig::default().position(Point::new(300.0, 300.));
-    Application::new().window(move |_| app_view(simple_doc), Some(config)).run();
+    let config =
+        WindowConfig::default().position(Point::new(300.0, 300.));
+    Application::new()
+        .window(move |_| app_view(simple_doc), Some(config))
+        .run();
     Ok(())
 }
 
 fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
-    let view = panel(simple_doc).style(|x| x.width(600.).height(300.));
+    let view = stack((
+        panel(simple_doc).style(|x| x.width(600.).height(300.)),
+        static_label("click")
+            .style(|x| x.width(50.).height(50.))
+            .on_click_stop(move |_| {
+                simple_doc.update(|x| {
+                    let src = match &x
+                        .lines
+                        .display_strategy
+                    {
+                        DisplayStrategy::Viewport => {
+                            if let Some(item) =
+                                x.lines.ropes.keys().nth(0)
+                            {
+                                Some(item.clone())
+                            } else {
+                                None
+                            }
+                        },
+                        DisplayStrategy::TextSrc(_) => {
+                            None
+                        },
+                    };
+                    x.update_display(src);
+                });
+            })
+    ));
     let id = view.id();
+
     view.on_key_up(
         Key::Named(NamedKey::F11),
         |m| m.is_empty(),
-        move |_| id.inspect(),
+        move |_| id.inspect()
     )
 }
 

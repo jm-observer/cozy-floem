@@ -1,4 +1,4 @@
-use crate::data::{SimpleDoc, VisualLine};
+use crate::data::SimpleDoc;
 use floem::{
     Renderer, View, ViewId,
     context::{PaintCx, StyleCx},
@@ -12,7 +12,7 @@ use floem::{
     taffy::NodeId,
     views::scroll
 };
-use log::{debug, error};
+use log::error;
 
 pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
     let (hover_hyperlink, id) =
@@ -158,8 +158,7 @@ impl View for EditorView {
             self.doc.with_untracked(|x| {
                 (
                     x.viewport,
-                    x.viewport_lines()
-                        ,
+                    x.viewport_lines(),
                     x.position_of_cursor(),
                     x.select_of_cursor(),
                     x.style.clone()

@@ -1,16 +1,17 @@
-use ansi_to_style::{TextStyle, parse_byte};
+use ansi_to_style::{parse_byte};
 use anyhow::Result;
 use cargo_metadata::{CompilerMessage, Message};
-use cozy_floem::data::{ErrLevel, Hyperlink, ranges_overlap, StyledLines, StyledText, TextSrc};
+use cozy_floem::data::{
+    ErrLevel, Hyperlink, StyledText, TextSrc,
+};
 use floem::{
     ext_event::{
         ExtSendTrigger, create_ext_action, register_ext_trigger
     },
     prelude::{SignalGet, SignalUpdate},
     reactive::{ReadSignal, Scope, with_scope},
-    text::{Attrs, AttrsList, Style, Weight}
 };
-use log::{debug, info, warn};
+use log::{info, warn};
 use parking_lot::Mutex;
 use std::{collections::VecDeque, sync::Arc};
 use tokio::{
@@ -85,14 +86,17 @@ pub async fn run_command(
                             {
                                 let styled_text =
                                     parse_byte(rendered.as_bytes());
-                                let package_id = msg.package_id.clone();
+                                let package_id =
+                                    msg.package_id.clone();
                                 let hyperlink =
                                     resolve_hyperlink_from_message(
                                         msg,
                                         styled_text.text.as_str()
                                     );
                                 channel.send(StyledText {
-                                    text_src: TextSrc::StdOut { package_id },
+                                    text_src: Some(TextSrc::StdOut {
+                                        package_id
+                                    }),
                                     styled_text,
                                     hyperlink
                                 });
@@ -124,12 +128,17 @@ pub async fn run_command(
             OutputLine::StdErr(line) => {
                 // log::debug!("StdErr: {}", line);
                 let styled_text = parse_byte(line.as_bytes());
-                let mut level = ErrLevel::None;
-                if styled_text.text.as_str().trim_start().starts_with("error") {
-                    level = ErrLevel::Error;
+                let mut text_src = None;
+                if styled_text
+                    .text
+                    .as_str()
+                    .trim_start()
+                    .starts_with("error")
+                {
+                    text_src = Some(TextSrc::StdErr {level:ErrLevel::Error});
                 }
                 channel.send(StyledText {
-                    text_src: TextSrc::StdErr { level },
+                    text_src,
                     styled_text,
                     hyperlink: vec![]
                 });
@@ -216,12 +225,11 @@ impl<T: Send + Clone + 'static> ExtChannel<T> {
 //     }
 // }
 
-
 fn resolve_hyperlink_from_message(
     msg: CompilerMessage,
     text: &str
 ) -> Vec<Hyperlink> {
-    let mut file_hyper: Vec<Hyperlink> = msg
+    let file_hyper: Vec<Hyperlink> = msg
         .message
         .spans
         .into_iter()
