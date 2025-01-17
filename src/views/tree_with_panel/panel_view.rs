@@ -1,5 +1,5 @@
 
-use super::data::SimpleDoc;
+use crate::views::tree_with_panel::data::panel::{DocManager};
 use floem::{
     Renderer, View, ViewId,
     context::{PaintCx, StyleCx},
@@ -7,15 +7,15 @@ use floem::{
     keyboard::Key,
     kurbo::{Line, Point, Rect, Stroke},
     peniko::Color,
-    prelude::{Decorators, RwSignal, SignalUpdate, SignalWith},
+    prelude::{Decorators},
     reactive::SignalGet,
     style::{CursorStyle, Style},
     taffy::NodeId,
     views::scroll
 };
-use log::error;
+use log::{debug, error};
 
-pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
+pub fn panel(doc: DocManager) -> impl View {
     let (hover_hyperlink, id) =
         doc.with_untracked(|x| (x.hover_hyperlink, x.id));
     let view = Panel {
@@ -100,7 +100,7 @@ pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
 pub struct Panel {
     pub id:         ViewId,
     pub inner_node: Option<NodeId>,
-    pub doc:        RwSignal<SimpleDoc>
+    pub doc:        DocManager
 }
 
 impl View for Panel {
@@ -123,6 +123,7 @@ impl View for Panel {
         &mut self,
         cx: &mut floem::context::LayoutCx
     ) -> floem::taffy::prelude::NodeId {
+        debug!("layout");
         cx.layout_node(self.id, true, |_cx| {
             if self.inner_node.is_none() {
                 self.inner_node = Some(self.id.new_taffy_node());
@@ -154,7 +155,7 @@ impl View for Panel {
     }
 
     fn paint(&mut self, cx: &mut PaintCx) {
-        // debug!("paint");
+        debug!("paint");
         let (viewport, lines, position_of_cursor, selections, style) =
             self.doc.with_untracked(|x| {
                 (

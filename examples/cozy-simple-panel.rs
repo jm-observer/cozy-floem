@@ -1,21 +1,20 @@
 use ansi_to_style::TextStyle;
-use cozy_floem::{
-    views::tree_with_panel::{data::{SimpleDoc, StyledText}, panel},
-};
+use cozy_floem::views::tree_with_panel::{data::StyledText, panel};
 use floem::{
-    View, ViewId,
-    keyboard::{Key, NamedKey},
-    peniko::Color,
+    keyboard::{Key, NamedKey}, peniko::Color,
     prelude::{
-        Decorators, RwSignal, SignalGet, SignalUpdate,
-        create_rw_signal
+        create_rw_signal, Decorators, RwSignal, SignalGet,
+        SignalUpdate
     },
     reactive::Scope,
-    text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight}
+    text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight},
+    View,
+    ViewId
 };
-use log::{LevelFilter::Info, error};
-use rust_resolve::{ExtChannel, create_signal_from_channel};
+use log::{error, LevelFilter::Info};
+use rust_resolve::{create_signal_from_channel, ExtChannel};
 use std::{borrow::Cow, thread, time::Duration};
+use cozy_floem::views::tree_with_panel::data::panel::SimpleDoc;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(

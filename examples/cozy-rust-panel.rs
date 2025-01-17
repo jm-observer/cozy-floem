@@ -1,24 +1,23 @@
-use cozy_floem::{
-    views::tree_with_panel::{data::{DisplayStrategy, SimpleDoc, StyledText}, panel},
-};
+use cozy_floem::views::tree_with_panel::{data::StyledText, panel};
 use floem::{
-    Application, View, ViewId,
-    keyboard::{Key, NamedKey},
-    kurbo::Point,
+    Application, keyboard::{Key, NamedKey}, kurbo::Point,
     prelude::{
-        Decorators, RwSignal, SignalGet, SignalUpdate,
-        create_rw_signal
+        create_rw_signal, Decorators, SignalGet,
     },
     reactive::Scope,
+    View,
+    ViewId,
     views::{stack, static_label},
     window::WindowConfig
 };
-use log::{LevelFilter::Info, error};
+use log::{error, LevelFilter::Info};
 use rust_resolve::{
-    ExtChannel, create_signal_from_channel, run_command
+    create_signal_from_channel, ExtChannel, run_command
 };
 use std::thread;
 use tokio::process::Command;
+use cozy_floem::views::tree_with_panel::data::lines::DisplayStrategy;
+use cozy_floem::views::tree_with_panel::data::panel::{DocManager};
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -35,8 +34,8 @@ fn main() -> anyhow::Result<()> {
         create_signal_from_channel::<StyledText>(cx);
 
     let hover_hyperlink = create_rw_signal(None);
-    let doc = SimpleDoc::new(ViewId::new(), hover_hyperlink);
-    let simple_doc = create_rw_signal(doc);
+
+    let simple_doc = DocManager::new(cx, ViewId::new(), hover_hyperlink);
 
     cx.create_effect(move |_| {
         if let Some(line) = read_signal.get() {
@@ -66,7 +65,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
+fn app_view(simple_doc: DocManager) -> impl View {
     let view = stack((
         panel(simple_doc).style(|x| x.width(600.).height(300.)),
         static_label("click")
