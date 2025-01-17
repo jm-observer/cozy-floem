@@ -1,7 +1,6 @@
 use ansi_to_style::TextStyle;
 use cozy_floem::{
-    data::{SimpleDoc, StyledText},
-    view::panel
+    views::tree_with_panel::{data::{SimpleDoc, StyledText}, panel},
 };
 use floem::{
     View, ViewId,

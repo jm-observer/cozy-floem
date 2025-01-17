@@ -1,70 +1,30 @@
+mod cursor;
+
 use ansi_to_style::TextStyle;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use cargo_metadata::PackageId;
 use doc::{
     hit_position_aff,
     lines::{layout::*, line_ending::LineEnding, word::WordCursor}
 };
 use floem::{
-    Clipboard, ViewId,
-    kurbo::{Point, Rect, Size},
+    Clipboard, kurbo::{Point, Rect, Size},
     peniko::Color,
     pointer::{PointerInputEvent, PointerMoveEvent},
     prelude::{SignalGet, SignalUpdate},
     reactive::RwSignal,
     text::{
-        Attrs, AttrsList, FONT_SYSTEM, FamilyOwned, LineHeightValue,
+        Attrs, AttrsList, FamilyOwned, FONT_SYSTEM, LineHeightValue,
         Style, Weight
-    }
+    },
+    ViewId
 };
 use lapce_xi_rope::Rope;
 use log::{error, info, warn};
 use std::{
-    borrow::Cow, cmp::Ordering, collections::HashMap, ops::Range
+    borrow::Cow, collections::HashMap, ops::Range
 };
-
-#[derive(Copy, Clone, Debug)]
-pub enum Position {
-    Region { start: usize, end: usize },
-    Caret(usize),
-    None
-}
-
-#[derive(Clone, Debug)]
-pub struct Cursor {
-    dragging:     bool,
-    pub position: Position
-}
-
-impl Cursor {
-    pub fn offset(&self) -> Option<usize> {
-        Some(match self.position {
-            Position::Region { end, .. } => end,
-            Position::Caret(offset) => offset,
-            Position::None => return None
-        })
-    }
-
-    pub fn start(&self) -> Option<usize> {
-        Some(match self.position {
-            Position::Region { start, .. } => start,
-            Position::Caret(offset) => offset,
-            Position::None => return None
-        })
-    }
-
-    pub fn region(&self) -> Option<(usize, usize)> {
-        if let Position::Region { start, end } = self.position {
-            match start.cmp(&end) {
-                Ordering::Less => Some((start, end)),
-                Ordering::Equal => None,
-                Ordering::Greater => Some((end, start))
-            }
-        } else {
-            None
-        }
-    }
-}
+use cursor::{Cursor, Position};
 
 #[derive(Clone, Debug)]
 pub struct DocStyle {
@@ -650,19 +610,6 @@ impl Hyperlink {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct TextLayoutLine {
-    pub hyperlinks: Vec<(Point, Point, Color)>,
-    pub text:       TextLayout
-}
-
-#[derive(Clone)]
-pub struct Line {
-    pub content:    String,
-    pub attrs_list: AttrsList,
-    pub hyperlink:  Vec<Hyperlink>
-}
-
 pub fn ranges_overlap(
     r1: &Range<usize>,
     r2: &Range<usize>
@@ -679,17 +626,6 @@ pub fn ranges_overlap(
     } else {
         Some(overlap)
     }
-}
-
-pub trait Styled {
-    fn content(&self) -> &str;
-    fn line_attrs(
-        &self,
-        attrs: &mut AttrsList,
-        default_attrs: Attrs,
-        range: Range<usize>,
-        delta: usize
-    ) -> Vec<Hyperlink>;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -1253,59 +1189,59 @@ impl StyledText {
     }
 }
 
-impl crate::data::Styled for StyledText {
-    fn content(&self) -> &str {
-        &self.styled_text.text
-    }
-
-    fn line_attrs(
-        &self,
-        attrs_list: &mut AttrsList,
-        default_attrs: Attrs,
-        range: Range<usize>,
-        delta: usize
-    ) -> Vec<Hyperlink> {
-        self.styled_text.styles.iter().for_each(|x| {
-            if let Some(delta_range) =
-                ranges_overlap(&x.range, &range)
-            {
-                let TextStyle {
-                    bold,
-                    italic,
-                    fg_color,
-                    ..
-                } = x;
-                let mut attrs = default_attrs;
-                if *bold {
-                    attrs = attrs.weight(Weight::BOLD);
-                }
-                if *italic {
-                    attrs = attrs.style(Style::Italic);
-                }
-                if let Some(fg) = fg_color {
-                    attrs = attrs.color(*fg);
-                }
-                let range = delta_range.start - delta
-                    ..delta_range.end - delta;
-                // debug!("delta_range={range:?}, style: {x:?}");
-                attrs_list.add_span(range, attrs);
-            }
-        });
-        self.hyperlink
-            .iter()
-            .filter_map(|x| {
-                if let Some(delta_range) =
-                    ranges_overlap(&x.range(), &range)
-                {
-                    let range = delta_range.start - delta
-                        ..delta_range.end - delta;
-                    let mut x = x.clone();
-                    x.range_mut(range);
-                    Some(x)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-}
+// impl crate::data::Styled for StyledText {
+//     fn content(&self) -> &str {
+//         &self.styled_text.text
+//     }
+//
+//     fn line_attrs(
+//         &self,
+//         attrs_list: &mut AttrsList,
+//         default_attrs: Attrs,
+//         range: Range<usize>,
+//         delta: usize
+//     ) -> Vec<Hyperlink> {
+//         self.styled_text.styles.iter().for_each(|x| {
+//             if let Some(delta_range) =
+//                 ranges_overlap(&x.range, &range)
+//             {
+//                 let TextStyle {
+//                     bold,
+//                     italic,
+//                     fg_color,
+//                     ..
+//                 } = x;
+//                 let mut attrs = default_attrs;
+//                 if *bold {
+//                     attrs = attrs.weight(Weight::BOLD);
+//                 }
+//                 if *italic {
+//                     attrs = attrs.style(Style::Italic);
+//                 }
+//                 if let Some(fg) = fg_color {
+//                     attrs = attrs.color(*fg);
+//                 }
+//                 let range = delta_range.start - delta
+//                     ..delta_range.end - delta;
+//                 // debug!("delta_range={range:?}, style: {x:?}");
+//                 attrs_list.add_span(range, attrs);
+//             }
+//         });
+//         self.hyperlink
+//             .iter()
+//             .filter_map(|x| {
+//                 if let Some(delta_range) =
+//                     ranges_overlap(&x.range(), &range)
+//                 {
+//                     let range = delta_range.start - delta
+//                         ..delta_range.end - delta;
+//                     let mut x = x.clone();
+//                     x.range_mut(range);
+//                     Some(x)
+//                 } else {
+//                     None
+//                 }
+//             })
+//             .collect()
+//     }
+// }

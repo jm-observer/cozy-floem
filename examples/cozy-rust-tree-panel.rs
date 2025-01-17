@@ -1,6 +1,5 @@
 use cozy_floem::{
-    data::{SimpleDoc, StyledText},
-    view::panel
+    views::tree_with_panel::{data::{DisplayStrategy, SimpleDoc, StyledText}, panel},
 };
 use floem::{
     Application, View, ViewId,
@@ -11,6 +10,7 @@ use floem::{
         create_rw_signal
     },
     reactive::Scope,
+    views::{stack, static_label},
     window::WindowConfig
 };
 use log::{LevelFilter::Info, error};
@@ -23,12 +23,12 @@ use tokio::process::Command;
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
         "panel",
-        "error,rust_resolve=debug,cozy_rust_panel=debug,\
+        "warn,rust_resolve=debug,cozy_rust_panel=debug,\
          cozy_floem=debug",
         Info,
         false
     )
-    .build();
+        .build();
 
     let cx = Scope::new();
     let (read_signal, channel, send) =
@@ -67,9 +67,24 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
-    let view =
-        panel(simple_doc).style(|x| x.width(600.).height(300.));
+    let view = stack((
+        panel(simple_doc).style(|x| x.width(600.).height(300.)),
+        static_label("click")
+            .style(|x| x.width(50.).height(50.))
+            .on_click_stop(move |_| {
+                simple_doc.update(|x| {
+                    let src = match &x.lines.display_strategy {
+                        DisplayStrategy::Viewport => {
+                            x.lines.ropes.keys().next().cloned()
+                        },
+                        DisplayStrategy::TextSrc(_) => None
+                    };
+                    x.update_display(src);
+                });
+            })
+    ));
     let id = view.id();
+
     view.on_key_up(
         Key::Named(NamedKey::F11),
         |m| m.is_empty(),
@@ -83,6 +98,7 @@ pub async fn run(channel: ExtChannel<StyledText>) {
         error!("{:?}", err);
     }
 }
+
 async fn _run(channel: ExtChannel<StyledText>) -> anyhow::Result<()> {
     let mut command = Command::new("cargo");
     command.args([

@@ -1,7 +1,7 @@
 use ansi_to_style::parse_byte;
 use anyhow::Result;
 use cargo_metadata::{CompilerMessage, Message};
-use cozy_floem::data::{ErrLevel, Hyperlink, StyledText, TextSrc};
+use cozy_floem::views::tree_with_panel::data::{ErrLevel, Hyperlink, StyledText, TextSrc};
 use floem::{
     ext_event::{
         ExtSendTrigger, create_ext_action, register_ext_trigger

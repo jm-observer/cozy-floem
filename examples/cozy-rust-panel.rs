@@ -1,6 +1,5 @@
 use cozy_floem::{
-    data::{DisplayStrategy, SimpleDoc, StyledText},
-    view::panel
+    views::tree_with_panel::{data::{DisplayStrategy, SimpleDoc, StyledText}, panel},
 };
 use floem::{
     Application, View, ViewId,

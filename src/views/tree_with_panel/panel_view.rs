@@ -1,4 +1,5 @@
-use crate::data::SimpleDoc;
+
+use super::data::SimpleDoc;
 use floem::{
     Renderer, View, ViewId,
     context::{PaintCx, StyleCx},
@@ -17,60 +18,60 @@ use log::error;
 pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
     let (hover_hyperlink, id) =
         doc.with_untracked(|x| (x.hover_hyperlink, x.id));
-    let view = EditorView {
+    let view = Panel {
         id,
         inner_node: None,
         doc
     }
-    .on_event_cont(EventListener::PointerDown, move |event| {
-        if let Event::PointerDown(pointer_event) = event {
-            let rs = doc.try_update(|x| {
-                x.pointer_down(pointer_event.clone())
-            });
-            match rs {
-                Some(Err(err)) => error!("{err:?}"),
-                None => error!("doc try update point down fail"),
-                _ => ()
+        .on_event_cont(EventListener::PointerDown, move |event| {
+            if let Event::PointerDown(pointer_event) = event {
+                let rs = doc.try_update(|x| {
+                    x.pointer_down(pointer_event.clone())
+                });
+                match rs {
+                    Some(Err(err)) => error!("{err:?}"),
+                    None => error!("doc try update point down fail"),
+                    _ => ()
+                }
             }
-        }
-    })
-    .on_event_cont(EventListener::PointerMove, move |event| {
-        if let Event::PointerMove(pointer_event) = event {
-            let rs = doc.try_update(|x| {
-                x.pointer_move(pointer_event.clone())
-            });
-            match rs {
-                Some(Err(err)) => error!("{err:?}"),
-                None => error!("doc try update point move fail"),
-                _ => ()
-            }
-        }
-    })
-    .on_event_cont(EventListener::PointerUp, move |event| {
-        if let Event::PointerUp(pointer_event) = event {
-            let rs = doc
-                .try_update(|x| x.pointer_up(pointer_event.clone()));
-            match rs {
-                Some(Err(err)) => error!("{err:?}"),
-                None => error!("doc try update point up fail"),
-                _ => ()
-            }
-        }
-    })
-    .keyboard_navigable()
-    .on_key_down(
-        Key::Character("c".into()),
-        |modifiers| modifiers.control(),
-        move |_| {
-            doc.with_untracked(|x| x.copy_select());
-        }
-    )
-    .style(move |x| {
-        let hover_hyperlink = hover_hyperlink.get();
-        x.apply_if(hover_hyperlink.is_some(), |x| {
-            x.cursor(CursorStyle::Pointer)
         })
-    });
+        .on_event_cont(EventListener::PointerMove, move |event| {
+            if let Event::PointerMove(pointer_event) = event {
+                let rs = doc.try_update(|x| {
+                    x.pointer_move(pointer_event.clone())
+                });
+                match rs {
+                    Some(Err(err)) => error!("{err:?}"),
+                    None => error!("doc try update point move fail"),
+                    _ => ()
+                }
+            }
+        })
+        .on_event_cont(EventListener::PointerUp, move |event| {
+            if let Event::PointerUp(pointer_event) = event {
+                let rs = doc
+                    .try_update(|x| x.pointer_up(pointer_event.clone()));
+                match rs {
+                    Some(Err(err)) => error!("{err:?}"),
+                    None => error!("doc try update point up fail"),
+                    _ => ()
+                }
+            }
+        })
+        .keyboard_navigable()
+        .on_key_down(
+            Key::Character("c".into()),
+            |modifiers| modifiers.control(),
+            move |_| {
+                doc.with_untracked(|x| x.copy_select());
+            }
+        )
+        .style(move |x| {
+            let hover_hyperlink = hover_hyperlink.get();
+            x.apply_if(hover_hyperlink.is_some(), |x| {
+                x.cursor(CursorStyle::Pointer)
+            })
+        });
     let handle_thickness = 12.0;
     scroll(view)
         .on_event_cont(EventListener::PointerDown, move |x| {
@@ -88,21 +89,21 @@ pub fn panel(doc: RwSignal<SimpleDoc>) -> impl View {
         })
         .style(move |x| {
             x.border(1.0)
-            .padding_right(handle_thickness)
-            // .margin_left(6.0)
-            .padding_left(6.0)
-            .padding_bottom(handle_thickness)
+                .padding_right(handle_thickness)
+                // .margin_left(6.0)
+                .padding_left(6.0)
+                .padding_bottom(handle_thickness)
         })
 }
 
 #[allow(dead_code)]
-pub struct EditorView {
+pub struct Panel {
     pub id:         ViewId,
     pub inner_node: Option<NodeId>,
     pub doc:        RwSignal<SimpleDoc>
 }
 
-impl View for EditorView {
+impl View for Panel {
     fn id(&self) -> ViewId {
         self.id
     }
@@ -203,7 +204,7 @@ impl View for EditorView {
     }
 }
 
-pub fn paint_extra_style(
+fn paint_extra_style(
     cx: &mut PaintCx,
     extra_styles: &[(Point, Point, Color)]
 ) {
