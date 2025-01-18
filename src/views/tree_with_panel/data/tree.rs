@@ -1,31 +1,22 @@
+use std::ops::AddAssign;
 use floem::peniko::Color;
 use floem::prelude::{RwSignal, SignalGet, VirtualVector};
 use floem::reactive::Scope;
 use log::debug;
-use crate::views::tree_with_panel::data::lines::TextSrc;
+use crate::views::tree_with_panel::data::lines::{DisplayId};
 
 #[derive(Clone)]
-pub enum TreeNode {
-    Root {
-        cx: Scope,
-        children: Vec<TreeNode>,
-        content: String,
-        level: RwSignal<Level>,
-        open: RwSignal<bool>
-    },
-    Node {
-        id: TextSrc,
-        content: String,
-        level: RwSignal<Level>,
-        open: RwSignal<bool>,
-    },
+pub struct TreeNode {
+    pub cx: Scope,
+    pub display_id: DisplayId,
+    pub children: Vec<TreeNode>,
+    pub level: RwSignal<Level>,
+    pub open: RwSignal<bool>,
 }
 
 #[derive(Clone, Debug)]
 pub struct TreeNodeData {
-    pub id: Option<TextSrc>,
-    pub hash: Option<u64>,
-    pub content: String,
+    pub display_id: DisplayId,
     pub open: RwSignal<bool>,
     pub level: RwSignal<Level>,
 }
@@ -38,7 +29,6 @@ pub enum Level {
 }
 
 impl TreeNodeData {
-
     pub fn track_level_svg(&self) -> &'static str {
         match self.level.get() {
             Level::None => {
@@ -47,7 +37,7 @@ impl TreeNodeData {
             }
             Level::Warn | Level::Error => {
                 // warning.svg
-                (r#"<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.56 1h.88l6.54 12.26-.44.74H1.44L1 13.26 7.56 1zM8 2.28L2.28 13H13.7L8 2.28zM8.625 12v-1h-1.25v1h1.25zm-1.25-2V6h1.25v4h-1.25z"/></svg>"#)
+                r#"<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.56 1h.88l6.54 12.26-.44.74H1.44L1 13.26 7.56 1zM8 2.28L2.28 13H13.7L8 2.28zM8.625 12v-1h-1.25v1h1.25zm-1.25-2V6h1.25v4h-1.25z"/></svg>"#
             }
         }
     }
@@ -67,81 +57,63 @@ impl TreeNodeData {
 }
 
 impl TreeNode {
-    pub fn add_child(&mut self, child_id: TextSrc,
-                     content: String) {
-        debug!("add_child {:?}", child_id);
-        if let TreeNode::Root { children, cx, .. } = self {
-            if children.iter().find(|x| if let TreeNode::Node { id, .. } = x {
-                *id == child_id
-            } else {
-                false
-            }).is_none() {
-                children.push(TreeNode::Node { id: child_id, content, level: cx.create_rw_signal(Level::None), open: cx.create_rw_signal(false) })
+    pub fn add_child(&mut self, id: DisplayId) {
+        debug!("add_child {:?}", id);
+        match &id {
+            DisplayId::All => {}
+            DisplayId::Error | DisplayId::Crate { .. } => {
+                if self.children.iter().find(|x| id == x.display_id).is_none() {
+                    self.children.push(TreeNode { cx: self.cx, display_id: id, level: self.cx.create_rw_signal(Level::None), open: self.cx.create_rw_signal(true), children: vec![] })
+                }
+            }
+            DisplayId::CrateFile { crate_name, .. } => {
+                let crate_id = DisplayId::Crate { crate_name: crate_name.clone() };
+                self.add_child(crate_id.clone());
+                if let Some(carte_item) = self.children.iter_mut().find(|x| crate_id == x.display_id) {
+                    if carte_item.children.iter().find(|x| id == x.display_id).is_none() {
+                        carte_item.children.push(TreeNode { cx: self.cx, display_id: id, level: self.cx.create_rw_signal(Level::None), open: self.cx.create_rw_signal(false), children: vec![] })
+                    }
+                }
             }
         }
     }
     fn to_data(&self) -> TreeNodeData {
-        match self {
-            TreeNode::Root { content, open, level,.. } => {
-                TreeNodeData {
-                    id: None,
-                    hash: None,
-                    content: content.clone(),
-                    open: *open,
-                    level: *level,
-                }
-            }
-            TreeNode::Node { id, content, open, level ,.. } => {
-                TreeNodeData {
-                    id: Some(id.clone()),
-                    // todo
-                    hash: None,
-                    content: content.clone(),
-                    open: *open,
-                    level: *level,
-                }
-            }
+        TreeNodeData {
+            display_id: self.display_id.clone(),
+            open: self.open,
+            level: self.level,
         }
     }
     fn total(&self) -> usize {
-        match self {
-            TreeNode::Root { children, open, .. } => {
-                if open.get() {
-                    children.iter().fold(1, |mut total, x| {
-                        total += x.total();
-                        total
-                    })
-                } else {
-                    1
-                }
-            }
-            TreeNode::Node { .. } => { 1 }
+        if self.open.get() {
+            self.children.iter().fold(1, |mut total, x| {
+                total += x.total();
+                total
+            })
+        } else {
+            1
         }
     }
 
     fn get_children(
         &self,
         min: usize,
-        max: usize,
+        max: usize, index: &mut usize, level: usize,
     ) -> Vec<(usize, usize, TreeNodeData)> {
-        match self {
-            TreeNode::Root { children, open, .. } => {
-                let mut children_data = Vec::new();
-                if min == 0 {
-                    children_data.push((0, 0, self.to_data()));
-                }
-                if open.get() {
-                    for (mut index, child) in children.iter().enumerate() {
-                        index += 1;
-                        if min <= index && index <= max {
-                            children_data.push((index, 1, child.to_data()));
-                        }
-                    }
-                }
-                children_data
-            }
-            TreeNode::Node { .. } => { vec![] }
+        let mut children_data = Vec::new();
+        if min <= *index && *index <= max {
+            children_data.push((*index, level, self.to_data()));
+        } else {
+            return children_data;
         }
+        index.add_assign(1);
+        if self.open.get() {
+            for child in self.children.iter() {
+                let mut children = child.get_children(min, max, index, level + 1);
+                children_data.append(&mut children);
+            }
+        }
+        children_data
     }
 }
 
@@ -157,7 +129,9 @@ impl VirtualVector<(usize, usize, TreeNodeData)> for TreeNode {
     ) -> impl Iterator<Item=(usize, usize, TreeNodeData)> {
         let min = range.start;
         let max = range.end;
-        let children = self.get_children(min, max);
+        let mut index = 0;
+        let children = self.get_children(min, max, &mut index, 0);
+        debug!("min={min} max={max} {:?}", children);
         children.into_iter()
     }
 }

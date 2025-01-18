@@ -1,12 +1,11 @@
-use floem::peniko::Color;
 use floem::prelude::{container, Decorators, scroll, SignalGet, SignalUpdate, stack, svg, virtual_stack, VirtualDirection, VirtualItemSize};
 use floem::reactive::ReadSignal;
-use floem::style::{AlignItems, CursorStyle};
+use floem::style::{AlignItems};
 use floem::View;
 use floem::views::static_label;
 use log::error;
 use crate::views::svg_from_fn;
-use crate::views::tree_with_panel::data::panel::{DocManager, DocStyle};
+use crate::views::tree_with_panel::data::panel::{DocManager};
 use crate::views::tree_with_panel::data::tree::TreeNode;
 
 pub fn view_tree(
@@ -21,7 +20,7 @@ pub fn view_tree(
             move |(index, _, _data)| *index,
             move |(_, level, rw_data)| {
                 error!("view_tree");
-                let id = rw_data.id.clone();
+                let id = rw_data.display_id.clone();
                 let level_svg = rw_data.track_level_svg();
                 let level_svg_color = rw_data.track_level_svg_color();
 
@@ -47,14 +46,14 @@ pub fn view_tree(
                             s.size(size, size)
                         }
                     })),
-                static_label(&rw_data.content).style(move |x| x.height(23.).font_size(13.).align_self(AlignItems::Start))
+                static_label(&rw_data.display_id.head()).style(move |x| x.height(23.).font_size(13.).align_self(AlignItems::Start))
                     .on_click_stop(move |_ | {
                         let value = id.clone();
                         doc.update(move |x| {
                             x.update_display(value.clone());
                         });
                     })
-                )).style(move |x| x.margin_left(level as f32 * 23.0))
+                )).style(move |x| x.margin_left(level as f32 * 13.0))
             },
         )
             .style(|s| s.flex_col().min_width_full().padding(6.0)),

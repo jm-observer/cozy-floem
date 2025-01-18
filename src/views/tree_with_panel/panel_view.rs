@@ -63,7 +63,9 @@ pub fn panel(doc: DocManager) -> impl View {
             Key::Character("c".into()),
             |modifiers| modifiers.control(),
             move |_| {
-                doc.with_untracked(|x| x.copy_select());
+                doc.with_untracked(|x| if let Err(err) = x.copy_select() {
+                    error!("{err:?}");
+                }) ;
             }
         )
         .style(move |x| {

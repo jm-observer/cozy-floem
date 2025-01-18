@@ -10,7 +10,6 @@ pub fn x_drag_line(
     let view = empty();
     let view_id = view.id();
     let drag_start: RwSignal<Option<Point>> = create_rw_signal(None);
-    let hover: RwSignal<bool> = create_rw_signal(false);
     view.on_event_stop(EventListener::PointerDown, move |event| {
         view_id.request_active();
         if let Event::PointerDown(pointer_event) = event {

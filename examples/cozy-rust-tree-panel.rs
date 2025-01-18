@@ -2,13 +2,13 @@ use cozy_floem::views::tree_with_panel::{data::StyledText, panel, view_tree};
 use floem::{
     Application, keyboard::{Key, NamedKey}, kurbo::Point,
     prelude::{
-        create_rw_signal, Decorators, SignalGet,
+        Decorators, SignalGet,
         SignalUpdate,
     },
     reactive::Scope,
     View,
     ViewId,
-    views::{stack, static_label},
+    views::{stack},
     window::WindowConfig,
 };
 use log::{error, LevelFilter::Info};
@@ -20,7 +20,7 @@ use floem::prelude::RwSignal;
 use floem::reactive::ReadSignal;
 use tokio::process::Command;
 use cozy_floem::views::drag_line::x_drag_line;
-use cozy_floem::views::tree_with_panel::data::lines::DisplayStrategy;
+use cozy_floem::views::tree_with_panel::data::lines::{DisplayId};
 use cozy_floem::views::tree_with_panel::data::panel::{DocManager, DocStyle};
 use cozy_floem::views::tree_with_panel::data::tree::{Level, TreeNode};
 
@@ -40,18 +40,16 @@ fn main() -> anyhow::Result<()> {
 
     let hover_hyperlink = cx.create_rw_signal(None);
     let simple_doc = DocManager::new(cx, ViewId::new(), hover_hyperlink, DocStyle::default());
-    let node = cx.create_rw_signal(TreeNode::Root { cx, children: vec![], content: "Run Cargo Command".to_string() , open: cx.create_rw_signal(true), level: cx.create_rw_signal(Level::None)});
+    let node = cx.create_rw_signal(TreeNode { display_id: DisplayId::All, cx, children: vec![], open: cx.create_rw_signal(true), level: cx.create_rw_signal(Level::None) });
     let read_node = node.read_only();
     let left_width = cx.create_rw_signal(200.0);
 
     cx.create_effect(move |_| {
         if let Some(line) = read_signal.get() {
             simple_doc.update(|x| {
-                if let Some(src) = &line.text_src {
-                    node.update(|x| {
-                        x.add_child(src.clone(), "abc11".to_string())
-                    })
-                }
+                node.update(|x| {
+                    x.add_child(line.id.display_id())
+                });
                 if let Err(err) = x.append_lines(line) {
                     error!("{err:?}");
                 }

@@ -4,10 +4,10 @@ use cargo_metadata::{CompilerMessage, Message};
 use cozy_floem::views::tree_with_panel::data::StyledText;
 use floem::{
     ext_event::{
-        create_ext_action, ExtSendTrigger, register_ext_trigger
+        create_ext_action, ExtSendTrigger, register_ext_trigger,
     },
     prelude::{SignalGet, SignalUpdate},
-    reactive::{ReadSignal, Scope, with_scope}
+    reactive::{ReadSignal, Scope, with_scope},
 };
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -15,18 +15,18 @@ use std::{collections::VecDeque, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
-    sync::mpsc
+    sync::mpsc,
 };
 use cozy_floem::views::tree_with_panel::data::lines::{ErrLevel, Hyperlink, TextSrc};
 
 pub enum OutputLine {
     StdOut(String),
-    StdErr(String)
+    StdErr(String),
 }
 
 pub async fn run_command(
     mut command: Command,
-    mut channel: ExtChannel<StyledText>
+    mut channel: ExtChannel<StyledText>,
 ) -> Result<()> {
     // 启动子进程，并捕获 stdout 和 stderr
     let mut child = command
@@ -74,7 +74,7 @@ pub async fn run_command(
     while let Some(message) = rx.recv().await {
         match message {
             OutputLine::StdOut(line) => {
-                // debug!("StdOut: {}", line);
+                // log::debug!("StdOut: {}", line);
                 if let Ok(parsed) =
                     serde_json::from_str::<Message>(&line)
                 {
@@ -89,33 +89,37 @@ pub async fn run_command(
                                     msg.package_id.clone();
                                 let hyperlink =
                                     resolve_hyperlink_from_message(
-                                        msg,
-                                        styled_text.text.as_str()
+                                        &msg,
+                                        styled_text.text.as_str(),
                                     );
+                                let file = hyperlink.iter().find_map(|x| match x {
+                                    Hyperlink::File { src, .. } => { Some(src.clone()) }
+                                    Hyperlink::Url { .. } => { None }
+                                });
+                                let text_src = TextSrc::StdOut { package_id, crate_name: msg.target.name, file };
+
                                 channel.send(StyledText {
-                                    text_src: Some(TextSrc::StdOut {
-                                        package_id
-                                    }),
+                                    id: text_src,
                                     styled_text,
-                                    hyperlink
+                                    hyperlink,
                                 });
                             }
-                        },
+                        }
                         Message::CompilerArtifact(_script) => {
                             // log::debug!("Compiler Artifact: {:?}",
                             // artifact);
-                        },
+                        }
                         Message::BuildScriptExecuted(_script) => {
                             // log::debug!("Build Script Executed:
                             // {:?}", script);
-                        },
+                        }
                         Message::BuildFinished(_script) => {
                             // log::debug!("Build Finished: {:?}",
                             // script);
-                        },
+                        }
                         Message::TextLine(_script) => {
                             // log::debug!("TextLine: {:?}", script);
-                        },
+                        }
                         val => {
                             log::debug!("??????????: {:?}", val);
                         }
@@ -123,25 +127,29 @@ pub async fn run_command(
                 } else {
                     log::debug!("Non-JSON stdout: {}", line);
                 }
-            },
+            }
             OutputLine::StdErr(line) => {
                 // log::debug!("StdErr: {}", line);
                 let styled_text = parse_byte(line.as_bytes());
-                let mut text_src = None;
-                if styled_text
-                    .text
-                    .as_str()
-                    .trim_start()
-                    .starts_with("error")
-                {
-                    text_src = Some(TextSrc::StdErr {
-                        level: ErrLevel::Error
-                    });
-                }
+                let text_src =
+                    if styled_text
+                        .text
+                        .as_str()
+                        .trim_start()
+                        .starts_with("error")
+                    {
+                        TextSrc::StdErr {
+                            level: ErrLevel::Error
+                        }
+                    } else {
+                        TextSrc::StdErr {
+                            level: ErrLevel::Other
+                        }
+                    };
                 channel.send(StyledText {
-                    text_src,
+                    id: text_src,
                     styled_text,
-                    hyperlink: vec![]
+                    hyperlink: vec![],
                 });
             }
         }
@@ -187,7 +195,7 @@ pub fn create_signal_from_channel<T: Send + Clone + 'static>(
 
 pub struct ExtChannel<T: Send + Clone + 'static> {
     trigger: ExtSendTrigger,
-    data:    Arc<Mutex<VecDeque<T>>>
+    data: Arc<Mutex<VecDeque<T>>>,
 }
 
 impl<T: Send + Clone + 'static> ExtChannel<T> {
@@ -230,13 +238,13 @@ impl<T: Send + Clone + 'static> ExtChannel<T> {
 // }
 
 fn resolve_hyperlink_from_message(
-    msg: CompilerMessage,
-    text: &str
+    msg: &CompilerMessage,
+    text: &str,
 ) -> Vec<Hyperlink> {
     let mut file_hyper: Vec<Hyperlink> = msg
         .message
         .spans
-        .into_iter()
+        .iter()
         .filter_map(|x| {
             let full_info = format!(
                 "{}:{}:{}",
@@ -244,10 +252,10 @@ fn resolve_hyperlink_from_message(
             );
             if let Some(index) = text.find(full_info.as_str()) {
                 Some(Hyperlink::File {
-                    range:  index..index + full_info.len(),
-                    src:    x.file_name,
-                    line:   x.line_start,
-                    column: Some(x.column_start)
+                    range: index..index + full_info.len(),
+                    src: x.file_name.clone(),
+                    line: x.line_start,
+                    column: Some(x.column_start),
                 })
             } else {
                 warn!("not found: {full_info}");
@@ -255,12 +263,12 @@ fn resolve_hyperlink_from_message(
             }
         })
         .collect();
-    if let Some(code_hyper) = msg.message.code.and_then(|x| {
+    if let Some(code_hyper) = msg.message.code.as_ref().and_then(|x| {
         if let Some(index) = text.find(x.code.as_str()) {
             Some(Hyperlink::Url {
                 range: index..index + x.code.len(),
                 // todo
-                url:   "".to_string()
+                url: "".to_string(),
             })
         } else {
             None

@@ -34,7 +34,7 @@ pub fn ranges_overlap(
 
 #[derive(Clone)]
 pub struct StyledLines {
-    pub text_src: Option<TextSrc>,
+    pub text_src: TextSrc,
     pub lines:    Vec<(String, Vec<TextStyle>, Vec<Hyperlink>)>
 }
 
@@ -48,12 +48,13 @@ pub struct VisualLine {
 
 #[derive(Clone)]
 pub struct StyledText {
-    pub text_src:    Option<TextSrc>,
+    pub id:    TextSrc,
     pub styled_text: ansi_to_style::StyledText,
-    pub hyperlink:   Vec<Hyperlink>
+    pub hyperlink:   Vec<Hyperlink>,
 }
 
 impl StyledText {
+
     pub fn to_lines(self) -> Result<StyledLines> {
         let rope: Rope = self.styled_text.text.into();
         let last_line = rope.line_of_offset(rope.len()) + 1;
@@ -120,7 +121,7 @@ impl StyledText {
             lines.push((content.to_string(), styles, links));
         }
         Ok(StyledLines {
-            text_src: self.text_src,
+            text_src: self.id,
             lines
         })
     }

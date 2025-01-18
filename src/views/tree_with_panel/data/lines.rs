@@ -14,20 +14,21 @@ use ansi_to_style::TextStyle;
 use cargo_metadata::PackageId;
 use crate::views::tree_with_panel::data::{StyledLines, VisualLine};
 use crate::views::tree_with_panel::data::panel::DocStyle;
+use anyhow::Result;
 
 #[derive(Clone, Debug)]
 pub enum Hyperlink {
     File {
-        range:  Range<usize>,
-        src:    String,
-        line:   usize,
-        column: Option<usize>
+        range: Range<usize>,
+        src: String,
+        line: usize,
+        column: Option<usize>,
     },
     Url {
         range: Range<usize>,
         // todo
-        url:   String
-    }
+        url: String,
+    },
 }
 
 impl Hyperlink {
@@ -42,7 +43,7 @@ impl Hyperlink {
         match self {
             Hyperlink::File { range, .. } => {
                 *range = new_range;
-            },
+            }
             Hyperlink::Url { range, .. } => {
                 *range = new_range;
             }
@@ -50,24 +51,62 @@ impl Hyperlink {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Lines {
-    pub rope:             Rope,
-    pub display_strategy: DisplayStrategy,
+    // pub rope:             Rope,
+    pub display_strategy: DisplayId,
     pub ropes: HashMap<
-        TextSrc,
+        DisplayId,
         (Rope, Vec<SimpleLine>, Vec<SimpleHyperlink>)
     >,
-    pub visual_line:      Vec<SimpleLine>,
-    pub visual_links:     Vec<SimpleHyperlink>,
-    pub hyperlinks:       Vec<Hyperlink>,
-    pub texts:            Vec<TextLayout>
+    // pub visual_line:      Vec<SimpleLine>,
+    // pub visual_links:     Vec<SimpleHyperlink>,
+    pub hyperlinks: Vec<Hyperlink>,
+    pub texts: Vec<TextLayout>,
+}
+
+impl Default for Lines {
+    fn default() -> Self {
+        let mut ropes = HashMap::new();
+        ropes.insert(DisplayId::All, ("".into(), vec![], vec![]));
+        Self {
+            display_strategy: Default::default(),
+            ropes,
+            hyperlinks: vec![],
+            texts: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, Default, Eq, PartialEq)]
+pub enum DisplayId {
+    #[default]
+    All,
+    Error,
+    Crate {
+        crate_name: String
+    },
+    CrateFile {
+        crate_name: String,
+        file_name: String,
+    },
+}
+
+impl DisplayId {
+    pub fn head(&self) -> String {
+        match self {
+            DisplayId::All => {"Run Cargo Command".to_string()}
+            DisplayId::Error => {"Error".to_string()}
+            DisplayId::Crate { crate_name } => {format!("Compiling {}", crate_name.clone())}
+            DisplayId::CrateFile { file_name, .. } => {file_name.clone()}
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct SimpleHyperlink {
-    pub rect:       Rect,
-    pub link_index: usize
+    pub rect: Rect,
+    pub link_index: usize,
 }
 
 impl SimpleHyperlink {
@@ -83,77 +122,44 @@ impl SimpleHyperlink {
 pub struct SimpleLine {
     pub line_index: usize,
     pub hyperlinks: Vec<(Point, Point)>,
-    pub text_index: usize
+    pub text_index: usize,
 }
 
 impl Lines {
-    pub fn display_all(&mut self) {
-        self.display_strategy = DisplayStrategy::Viewport
+    pub fn display(&mut self, id: DisplayId) {
+        self.display_strategy = id;
     }
-
-    pub fn display_src(&mut self, text_src: TextSrc) {
-        self.display_strategy = DisplayStrategy::TextSrc(text_src);
-    }
-
-    pub fn rope(&self) -> &Rope {
-        match &self.display_strategy {
-            DisplayStrategy::Viewport => &self.rope,
-            DisplayStrategy::TextSrc(src) => self
-                .ropes
-                .get(src)
-                .map(|(rope, _lines, _link)| rope)
-                .unwrap_or(&self.rope)
-        }
-    }
-
     fn display_simple_lines(
         &self,
         viewport: Rect,
-        line_height: f64
-    ) -> &[SimpleLine] {
-        let lines = self.line_info().1;
+        line_height: f64,
+    ) -> Result<&[SimpleLine]> {
+        let lines = &self.line_info()?.1;
         let len = lines.len().max(1) - 1;
         let min_line =
             ((viewport.y0 / line_height).floor() as usize).min(len);
         let max_line = ((viewport.y1 / line_height).round() as usize)
             .min(lines.len());
-        &lines[min_line..max_line]
+        Ok(&lines[min_line..max_line])
     }
 
-    fn line_info(
+    pub fn line_info(
         &self
-    ) -> (&Rope, &[SimpleLine], &[SimpleHyperlink]) {
-        match &self.display_strategy {
-            DisplayStrategy::Viewport => {
-                (&self.rope, &self.visual_line, &self.visual_links)
-            },
-            DisplayStrategy::TextSrc(text_src) => {
-                let Some((rope, line, link)) =
-                    self.ropes.get(text_src)
-                else {
-                    error!("not found {:?}", text_src);
-                    return (
-                        &self.rope,
-                        &self.visual_line,
-                        &self.visual_links
-                    );
-                };
-                (rope, line, link)
-            }
-        }
+    ) -> Result<&(Rope, Vec<SimpleLine>, Vec<SimpleHyperlink>)> {
+        self.ropes.get(&self.display_strategy).ok_or(anyhow!("not found {:?}", self.display_strategy))
     }
 
-    pub fn lines_len(&self) -> usize {
-        self.line_info().1.len()
+    pub fn lines_len(&self) -> Result<usize> {
+        Ok(self.line_info()?.1.len())
     }
 
     pub fn visual_lines(
         &self,
         viewport: Rect,
         line_height: f64,
-        hyper_color: Color
-    ) -> Vec<VisualLine> {
-        self.display_simple_lines(viewport, line_height)
+        hyper_color: Color,
+    ) -> Result<Vec<VisualLine>> {
+        Ok(self.display_simple_lines(viewport, line_height)?
             .iter()
             .filter_map(|x| {
                 let pos_y: f64 = x.line_index as f64 * line_height;
@@ -169,60 +175,59 @@ impl Lines {
                         pos_y,
                         line_index: x.line_index,
                         hyperlinks,
-                        text: text.clone()
+                        text: text.clone(),
                     })
                 } else {
                     warn!("not found text layout: {}", x.text_index);
                     None
                 }
             })
-            .collect()
+            .collect())
     }
 
     pub(crate) fn visual_lines_size(
         &self,
         viewport: Rect,
-        line_height: f64
-    ) -> Size {
+        line_height: f64,
+    ) -> Result<Size> {
         let viewport_size = viewport.size();
-        let len = self.lines_len();
+        let len = self.lines_len()?;
         let height = (len as f64 * line_height
             + viewport.size().height / 4.0)
             .max(viewport_size.height);
 
         let max_width = self
-            .display_simple_lines(viewport, line_height)
+            .display_simple_lines(viewport, line_height)?
             .iter()
             .fold(0., |x, line| {
-                let Some(text_layout) =
-                    self.text_layout_of_line(line.line_index)
-                else {
-                    warn!(
-                        "not found text layout {}",
-                        line.line_index
-                    );
-                    return x;
-                };
-                let width = text_layout.size().width;
-                if x < width { width } else { x }
+                match self.text_layout_of_line(line.line_index) {
+                    Ok(text_layout) => {
+                        let width = text_layout.size().width;
+                        if x < width { width } else { x }
+                    }
+                    Err(err) => {
+                        error!("{err:?}");
+                        return x;
+                    }
+                }
             })
             .max(viewport.size().width);
-        Size::new(max_width, height)
+        Ok(Size::new(max_width, height))
     }
 
     pub fn text_layout_of_line(
         &self,
-        line: usize
-    ) -> Option<&TextLayout> {
-        let line_index = self.line_info().1.get(line);
-        line_index.and_then(|index| self.texts.get(index.text_index))
+        line: usize,
+    ) -> Result<&TextLayout> {
+        let line_index = self.line_info()?.1.get(line);
+        line_index.and_then(|index| self.texts.get(index.text_index)).ok_or(anyhow!("not found {}", line))
     }
 
     pub fn point_of_offset(
         &self,
-        offset: usize
-    ) -> anyhow::Result<Option<(Point, usize, usize)>> {
-        let rope = self.rope();
+        offset: usize,
+    ) -> Result<Option<(Point, usize, usize)>> {
+        let rope = &self.line_info()?.0;
         if rope.is_empty() {
             return Ok(None);
         }
@@ -230,8 +235,7 @@ impl Lines {
         let line = rope.line_of_offset(offset);
         let offset_line = rope.offset_of_line(line)?;
         let text = self
-            .text_layout_of_line(line)
-            .ok_or(anyhow!("not found visual line: {line}"))?;
+            .text_layout_of_line(line)?;
         let point =
             hit_position_aff(text, offset - offset_line, true).point;
         Ok(Some((point, line, offset_line)))
@@ -240,13 +244,13 @@ impl Lines {
     #[allow(clippy::too_many_arguments)]
     fn push_src(
         &mut self,
-        text_src: &TextSrc,
-        content_origin_without_lf: String,
+        text_src: &DisplayId,
+        content_origin_without_lf: &String,
         text_index: usize,
         hyperlink: &[Hyperlink],
         line_ending: LineEnding,
         text: &TextLayout,
-        line_height: f64
+        line_height: f64,
     ) {
         let (rope, lines, links) =
             self.ropes.entry(text_src.clone()).or_default();
@@ -257,7 +261,7 @@ impl Lines {
             0
         };
         {
-            rope.edit(old_len..old_len, &content_origin_without_lf);
+            rope.edit(old_len..old_len, content_origin_without_lf);
             old_len += content_origin_without_lf.len();
             rope.edit(old_len..old_len, line_ending.get_chars());
         }
@@ -292,16 +296,16 @@ impl Lines {
                     underlines.push((x.0, x.1));
 
                     simple_link.push(SimpleHyperlink {
-                        rect:       x.2,
-                        link_index: start + index
+                        rect: x.2,
+                        link_index: start + index,
                     });
                     (underlines, simple_link)
-                }
+                },
             );
         let _line = SimpleLine {
             line_index,
             text_index,
-            hyperlinks: underlines
+            hyperlinks: underlines,
         };
         links.append(&mut simple_link);
         lines.push(_line);
@@ -309,136 +313,72 @@ impl Lines {
 
     pub fn in_hyperlink_region(
         &self,
-        position: Point
-    ) -> Option<usize> {
-        let links = self.line_info().2;
-        links.iter().find_map(|x| {
+        position: Point,
+    ) -> Result<Option<usize>> {
+        let links = &self.line_info()?.2;
+        Ok(links.iter().find_map(|x| {
             if x.rect.contains(position) {
                 Some(x.link_index)
             } else {
                 None
             }
-        })
+        }))
     }
 
     pub fn hyperlink_by_point(
         &self,
-        position: Point
-    ) -> Option<&Hyperlink> {
-        self.in_hyperlink_region(position).and_then(|x| {
+        position: Point,
+    ) -> Result<Option<&Hyperlink>> {
+        Ok(self.in_hyperlink_region(position)?.and_then(|x| {
             let rs = self.hyperlinks.get(x);
             if rs.is_none() {
                 error!("not found hyperlink: {}", x);
             }
             rs
-        })
+        }))
     }
 
     pub fn append_lines(
         &mut self,
         style_lines: StyledLines,
         line_ending: LineEnding,
-        doc_style: &DocStyle
+        doc_style: &DocStyle,
     ) -> anyhow::Result<()> {
         // 新内容如果没有\n则会导致二者相等
         let family = Cow::Owned(
             FamilyOwned::parse_list(&doc_style.font_family).collect()
         );
-        let mut old_len = self.rope.len();
-        let mut line_index = if old_len > 0 {
-            self.rope.line_of_offset(old_len)
-        } else {
-            0
-        };
-        let text_src = style_lines.text_src;
+        let display_ids = style_lines.text_src.display_ids();
         for (content_origin_without_lf, style, mut hyperlink) in
             style_lines.lines.into_iter()
         {
-            {
-                self.rope.edit(
-                    old_len..old_len,
-                    &content_origin_without_lf
-                );
-                old_len += content_origin_without_lf.len();
-                self.rope
-                    .edit(old_len..old_len, line_ending.get_chars());
-                old_len += line_ending.len();
-            }
             let mut attrs_list =
                 AttrsList::new(doc_style.attrs(&family));
             style.into_iter().for_each(|x| {
                 to_line_attrs(
                     &mut attrs_list,
                     doc_style.attrs(&family),
-                    x
+                    x,
                 )
             });
             let mut font_system = FONT_SYSTEM.lock();
             let text = TextLayout::new_with_font_system(
-                line_index,
+                0,
                 &content_origin_without_lf,
                 attrs_list,
-                &mut font_system
+                &mut font_system,
             );
 
             let text_index = self.texts.len();
-            let start = self.hyperlinks.len();
-            let (underlines, mut simple_link): (
-                Vec<(Point, Point)>,
-                Vec<SimpleHyperlink>
-            ) = hyperlink
-                .iter()
-                .map(|x| {
-                    let range = x.range();
-                    let x0 = text.hit_position(range.start).point.x;
-                    let x1 = text.hit_position(range.end).point.x;
-                    let y0 =
-                        line_index as f64 * doc_style.line_height;
-                    let y1 = (line_index + 1) as f64
-                        * doc_style.line_height;
-                    let under_line_y = (line_index + 1) as f64
-                        * doc_style.line_height
-                        - 2.0;
-                    (
-                        Point::new(x0, under_line_y),
-                        Point::new(x1, under_line_y),
-                        Rect::new(x0, y0, x1, y1)
-                    )
-                })
-                .enumerate()
-                .fold(
-                    (
-                        Vec::with_capacity(hyperlink.len()),
-                        Vec::with_capacity(hyperlink.len())
-                    ),
-                    |(mut underlines, mut simple_link),
-                     (index, x)| {
-                        underlines.push((x.0, x.1));
-
-                        simple_link.push(SimpleHyperlink {
-                            rect:       x.2,
-                            link_index: start + index
-                        });
-                        (underlines, simple_link)
-                    }
-                );
-
-            let _line = SimpleLine {
-                line_index,
-                text_index,
-                hyperlinks: underlines
-            };
-            self.visual_line.push(_line);
-            self.visual_links.append(&mut simple_link);
-            if let Some(text_src) = &text_src {
+            for id in &display_ids {
                 self.push_src(
-                    text_src,
-                    content_origin_without_lf,
+                    id,
+                    &content_origin_without_lf,
                     text_index,
                     &hyperlink,
                     line_ending,
                     &text,
-                    doc_style.line_height
+                    doc_style.line_height,
                 );
             }
             self.texts.push(text);
@@ -468,7 +408,7 @@ impl Lines {
             //         )
             //     })
             //     .collect();
-            line_index += 1;
+            // line_index += 1;
         }
         Ok(())
     }
@@ -477,7 +417,7 @@ impl Lines {
 fn to_line_attrs(
     attrs_list: &mut AttrsList,
     default_attrs: Attrs,
-    x: TextStyle
+    x: TextStyle,
 ) {
     let TextStyle {
         range,
@@ -501,18 +441,61 @@ fn to_line_attrs(
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum TextSrc {
-    StdOut { package_id: PackageId },
-    StdErr { level: ErrLevel }
+    StdOut {
+        package_id: PackageId,
+        crate_name: String,
+        file: Option<String>,
+    },
+    StdErr { level: ErrLevel },
+}
+
+impl TextSrc {
+    pub fn display_id(&self) -> DisplayId {
+        match self {
+            TextSrc::StdOut { crate_name, file, .. } => {
+                if let Some(file) = file {
+                    DisplayId::CrateFile { crate_name: crate_name.clone(), file_name: file.clone() }
+                } else {
+                    DisplayId::Crate { crate_name: crate_name.clone() }
+                }
+            }
+            TextSrc::StdErr { level } => {
+                match level {
+                    ErrLevel::Error => { DisplayId::Error }
+                    ErrLevel::Other => { DisplayId::All }
+                }
+            }
+        }
+    }
+
+    pub fn display_ids(&self) -> Vec<DisplayId> {
+        match self {
+            TextSrc::StdOut { crate_name, file, .. } => {
+                if let Some(file) = file {
+                    vec![DisplayId::All, DisplayId::Crate { crate_name: crate_name.clone() }, DisplayId::CrateFile { crate_name: crate_name.clone(), file_name: file.clone() }]
+                } else {
+                    vec![DisplayId::All, DisplayId::Crate { crate_name: crate_name.clone() }]
+                }
+            }
+            TextSrc::StdErr { level } => {
+                match level {
+                    ErrLevel::Error => { vec![DisplayId::All, DisplayId::Error] }
+                    ErrLevel::Other => { vec![DisplayId::All] }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ErrLevel {
-    Error
+    Error,
+    Other,
 }
 
 #[derive(Debug, Clone, Default)]
 pub enum DisplayStrategy {
     #[default]
     Viewport,
-    TextSrc(TextSrc)
+    TextSrc(TextSrc),
 }

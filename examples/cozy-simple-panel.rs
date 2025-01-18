@@ -89,7 +89,7 @@ pub(crate) fn init_content(mut channel: ExtChannel<StyledText>) {
             i
         );
         let line = StyledText {
-            text_src:    None,
+            id:    None,
             styled_text: ansi_to_style::StyledText {
                 text:   content,
                 styles: vec![TextStyle {
