@@ -23,11 +23,11 @@ impl DocManager {
     pub fn new(
         cx: Scope,
         id: ViewId,
-        hover_hyperlink: RwSignal<Option<usize>>
+        hover_hyperlink: RwSignal<Option<usize>>, doc_style: DocStyle
     ) -> Self {
         Self {
-            doc: cx.create_rw_signal(SimpleDoc::new(
-                id, hover_hyperlink,
+            doc: cx.create_rw_signal_with_track(SimpleDoc::new(
+                id, hover_hyperlink, doc_style
             ))
         }
     }
@@ -99,7 +99,7 @@ pub struct SimpleDoc {
 impl SimpleDoc {
     pub fn new(
         id: ViewId,
-        hover_hyperlink: RwSignal<Option<usize>>
+        hover_hyperlink: RwSignal<Option<usize>>, style: DocStyle
     ) -> Self {
         Self {
             id,
@@ -110,8 +110,7 @@ impl SimpleDoc {
                 dragging: false,
                 position: Position::None
             },
-            hover_hyperlink,
-            style: Default::default(),
+            hover_hyperlink, style,
             auto_scroll: true,
             lines: Default::default()
         }

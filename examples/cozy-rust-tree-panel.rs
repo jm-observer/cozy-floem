@@ -21,8 +21,8 @@ use floem::reactive::ReadSignal;
 use tokio::process::Command;
 use cozy_floem::views::drag_line::x_drag_line;
 use cozy_floem::views::tree_with_panel::data::lines::DisplayStrategy;
-use cozy_floem::views::tree_with_panel::data::panel::{DocManager};
-use cozy_floem::views::tree_with_panel::data::tree::TreeNode;
+use cozy_floem::views::tree_with_panel::data::panel::{DocManager, DocStyle};
+use cozy_floem::views::tree_with_panel::data::tree::{Level, TreeNode};
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -38,9 +38,9 @@ fn main() -> anyhow::Result<()> {
     let (read_signal, channel, send) =
         create_signal_from_channel::<StyledText>(cx);
 
-    let hover_hyperlink = create_rw_signal(None);
-    let simple_doc = DocManager::new(cx, ViewId::new(), hover_hyperlink);
-    let node = cx.create_rw_signal(TreeNode::Root { children: vec![], content: "Run Cargo Command".to_string() });
+    let hover_hyperlink = cx.create_rw_signal(None);
+    let simple_doc = DocManager::new(cx, ViewId::new(), hover_hyperlink, DocStyle::default());
+    let node = cx.create_rw_signal(TreeNode::Root { cx, children: vec![], content: "Run Cargo Command".to_string() , open: cx.create_rw_signal(true), level: cx.create_rw_signal(Level::None)});
     let read_node = node.read_only();
     let left_width = cx.create_rw_signal(200.0);
 

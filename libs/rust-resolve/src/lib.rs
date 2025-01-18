@@ -155,10 +155,13 @@ pub async fn run_command(
 pub fn create_signal_from_channel<T: Send + Clone + 'static>(
     cx: Scope
 ) -> (ReadSignal<Option<T>>, ExtChannel<T>, impl FnOnce(())) {
+    let (read, write) = cx.create_signal(None);
+    let cx = cx.create_child();
+
     let trigger = with_scope(cx, ExtSendTrigger::new);
 
     let channel_closed = cx.create_rw_signal(false);
-    let (read, write) = cx.create_signal(None);
+
     let data = Arc::new(Mutex::new(VecDeque::new()));
 
     {
