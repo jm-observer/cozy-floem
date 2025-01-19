@@ -1,23 +1,22 @@
-use cozy_floem::views::{
-    panel::{DocManager, DocStyle, panel},
-    tree_with_panel::data::StyledText
+use cozy_floem::{
+    channel::ExtChannel,
+    views::{
+        panel::{DocManager, DocStyle, panel},
+        tree_with_panel::data::{StyledText, TreePanelData}
+    }
 };
 use floem::{
     Application, View,
     keyboard::{Key, NamedKey},
     kurbo::Point,
-    prelude::{Decorators, SignalGet},
+    prelude::Decorators,
     reactive::Scope,
     views::stack,
     window::WindowConfig
 };
 use log::{LevelFilter::Info, error};
-use rust_resolve::{
-    run_command
-};
+use rust_resolve::run_command;
 use tokio::process::Command;
-use cozy_floem::channel::ExtChannel;
-use cozy_floem::views::tree_with_panel::data::TreePanelData;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(

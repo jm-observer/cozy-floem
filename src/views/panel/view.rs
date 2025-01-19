@@ -124,7 +124,8 @@ impl View for DocManager {
     ) -> floem::taffy::prelude::NodeId {
         cx.layout_node(self.panel_id, true, |_cx| {
             if self.inner_node.is_none() {
-                self.inner_node = Some(self.panel_id.new_taffy_node());
+                self.inner_node =
+                    Some(self.panel_id.new_taffy_node());
             }
             let view_size = self.with_untracked(|x| x.view_size());
             // debug!("layout view_size={view_size:?}");

@@ -3,26 +3,19 @@ use anyhow::Result;
 use cargo_metadata::{
     CompilerMessage, Message, diagnostic::DiagnosticLevel
 };
-use cozy_floem::views::{
-    panel::{ErrLevel, Hyperlink, TextSrc},
-    tree_with_panel::data::{Level, StyledText}
-};
-use floem::{
-    ext_event::{
-        ExtSendTrigger, create_ext_action, register_ext_trigger
-    },
-    prelude::{SignalGet, SignalUpdate},
-    reactive::{ReadSignal, Scope, with_scope}
+use cozy_floem::{
+    channel::ExtChannel,
+    views::{
+        panel::{ErrLevel, Hyperlink, TextSrc},
+        tree_with_panel::data::{Level, StyledText}
+    }
 };
 use log::{info, warn};
-use parking_lot::Mutex;
-use std::{collections::VecDeque, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
     sync::mpsc
 };
-use cozy_floem::channel::ExtChannel;
 
 pub enum OutputLine {
     StdOut(String),
@@ -194,7 +187,6 @@ pub async fn run_command(
     info!("child done");
     Ok(())
 }
-
 
 fn resolve_hyperlink_from_message(
     msg: &CompilerMessage,

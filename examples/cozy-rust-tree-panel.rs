@@ -1,23 +1,24 @@
-use cozy_floem::views::{
-    panel::DocStyle,
-    tree_with_panel::data::StyledText
+use cozy_floem::{
+    channel::ExtChannel,
+    views::{
+        panel::DocStyle,
+        tree_with_panel::{
+            data::{StyledText, TreePanelData},
+            tree_with_panel
+        }
+    }
 };
 use floem::{
     Application, View,
     keyboard::{Key, NamedKey},
     kurbo::Point,
-    prelude::{Decorators, SignalGet, SignalUpdate},
+    prelude::Decorators,
     reactive::Scope,
     window::WindowConfig
 };
 use log::LevelFilter::Info;
-use rust_resolve::{
-    run_command
-};
+use rust_resolve::run_command;
 use tokio::process::Command;
-use cozy_floem::channel::ExtChannel;
-use cozy_floem::views::tree_with_panel::data::{TreePanelData};
-use cozy_floem::views::tree_with_panel::tree_with_panel;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -35,18 +36,14 @@ fn main() -> anyhow::Result<()> {
     let config =
         WindowConfig::default().position(Point::new(300.0, 300.));
     Application::new()
-        .window(
-            move |_| app_view(data),
-            Some(config)
-        )
+        .window(move |_| app_view(data), Some(config))
         .run();
     Ok(())
 }
 
-fn app_view(
-    data: TreePanelData,
-) -> impl View {
-    let view = tree_with_panel(data)    .style(|x| x.height(300.0).width(800.0));
+fn app_view(data: TreePanelData) -> impl View {
+    let view =
+        tree_with_panel(data).style(|x| x.height(300.0).width(800.0));
     let id = view.id();
 
     view.on_key_up(

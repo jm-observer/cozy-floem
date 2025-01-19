@@ -1,4 +1,2 @@
-
-pub mod views;
 pub mod channel;
-
+pub mod views;

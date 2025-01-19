@@ -1,6 +1,8 @@
 use crate::views::{
+    drag_line::x_drag_line,
+    panel::panel,
     svg_from_fn,
-    tree_with_panel::data::Level
+    tree_with_panel::data::{Level, TreePanelData}
 };
 use floem::{
     View,
@@ -11,15 +13,8 @@ use floem::{
     style::AlignItems,
     views::static_label
 };
-use crate::views::drag_line::x_drag_line;
-use crate::views::panel::panel;
-use crate::views::tree_with_panel::data::TreePanelData;
 
-
-
-pub fn tree_with_panel(
-    data: TreePanelData,
-) -> impl View {
+pub fn tree_with_panel(data: TreePanelData) -> impl View {
     let left_width = data.left_width;
     let doc = data.doc;
     stack((
@@ -38,9 +33,7 @@ pub fn tree_with_panel(
         panel(doc).style(|x| x.flex_grow(1.).height_full())
     ))
 }
-fn view_tree(
-    data: TreePanelData
-) -> impl View {
+fn view_tree(data: TreePanelData) -> impl View {
     let node = data.node;
     scroll(
         virtual_stack(

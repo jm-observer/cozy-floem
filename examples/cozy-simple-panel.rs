@@ -1,20 +1,21 @@
 use ansi_to_style::TextStyle;
-use cozy_floem::views::{
-    panel::{DocManager, DocStyle, ErrLevel, TextSrc, panel},
-    tree_with_panel::data::{Level, StyledText}
+use cozy_floem::{
+    channel::ExtChannel,
+    views::{
+        panel::{DocManager, DocStyle, ErrLevel, TextSrc, panel},
+        tree_with_panel::data::{Level, StyledText, TreePanelData}
+    }
 };
 use floem::{
     View,
     keyboard::{Key, NamedKey},
     peniko::Color,
-    prelude::{Decorators, SignalGet},
+    prelude::Decorators,
     reactive::Scope,
     text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight}
 };
 use log::LevelFilter::Info;
 use std::{borrow::Cow, time::Duration};
-use cozy_floem::channel::ExtChannel;
-use cozy_floem::views::tree_with_panel::data::TreePanelData;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -42,7 +43,9 @@ fn app_view(simple_doc: DocManager) -> impl View {
     )
 }
 
-async fn init_content(mut channel: ExtChannel<StyledText>) -> anyhow::Result<()> {
+async fn init_content(
+    mut channel: ExtChannel<StyledText>
+) -> anyhow::Result<()> {
     let family = Cow::Owned(
         FamilyOwned::parse_list("JetBrains Mono").collect()
     );

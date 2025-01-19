@@ -19,27 +19,21 @@ mod lines;
 
 #[derive(Clone, Copy)]
 pub struct DocManager {
-    pub panel_id:         ViewId,
+    pub panel_id:   ViewId,
     pub inner_node: Option<NodeId>,
     doc:            RwSignal<SimpleDoc>
 }
 
 impl DocManager {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        cx: Scope,
-        id: ViewId,
-        doc_style: DocStyle
-    ) -> Self {
+    pub fn new(cx: Scope, id: ViewId, doc_style: DocStyle) -> Self {
         let hover_hyperlink = cx.create_rw_signal(None);
         Self {
-            panel_id: id,
+            panel_id:   id,
             inner_node: None,
-            doc: cx.create_rw_signal_with_track(SimpleDoc::new(
-                id,
-                hover_hyperlink,
-                doc_style
-            ))
+            doc:        cx.create_rw_signal_with_track(
+                SimpleDoc::new(id, hover_hyperlink, doc_style)
+            )
         }
     }
 
