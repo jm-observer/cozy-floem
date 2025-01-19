@@ -12,14 +12,14 @@ use floem::{
     text::{Attrs, FamilyOwned, LineHeightValue}
 };
 pub use lines::*;
-use log::{debug, error, info};
+use log::{error, info};
 
 mod cursor;
 mod lines;
 
 #[derive(Clone, Copy)]
 pub struct DocManager {
-    pub id:         ViewId,
+    pub panel_id:         ViewId,
     pub inner_node: Option<NodeId>,
     doc:            RwSignal<SimpleDoc>
 }
@@ -29,11 +29,11 @@ impl DocManager {
     pub fn new(
         cx: Scope,
         id: ViewId,
-        hover_hyperlink: RwSignal<Option<usize>>,
         doc_style: DocStyle
     ) -> Self {
+        let hover_hyperlink = cx.create_rw_signal(None);
         Self {
-            id,
+            panel_id: id,
             inner_node: None,
             doc: cx.create_rw_signal_with_track(SimpleDoc::new(
                 id,
@@ -608,7 +608,7 @@ impl SimpleDoc {
     }
 
     pub fn update_display(&mut self, id: DisplayId) {
-        info!("update_display {:?}", id);
+        // info!("update_display {:?}", id);
         self.lines.display(id);
         self.id.request_layout();
         self.id.request_paint();
@@ -635,7 +635,7 @@ impl SimpleDoc {
                     self.style.line_height
                 )
             );
-            debug!("auto_scroll {rect:?} len={len} line={line}",);
+            // debug!("auto_scroll {rect:?} len={len} line={line}",);
             self.id.scroll_to(Some(rect));
         }
         Ok(())

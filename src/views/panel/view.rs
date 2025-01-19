@@ -12,7 +12,7 @@ use floem::{
     taffy::NodeId,
     views::scroll
 };
-use log::{debug, error};
+use log::error;
 
 pub fn panel(doc: DocManager) -> impl View {
     let hover_hyperlink = doc.with_untracked(|x| x.hover_hyperlink);
@@ -104,7 +104,7 @@ pub struct Panel {
 
 impl View for DocManager {
     fn id(&self) -> ViewId {
-        self.id
+        self.panel_id
     }
 
     fn style_pass(&mut self, cx: &mut StyleCx<'_>) {
@@ -122,18 +122,18 @@ impl View for DocManager {
         &mut self,
         cx: &mut floem::context::LayoutCx
     ) -> floem::taffy::prelude::NodeId {
-        cx.layout_node(self.id, true, |_cx| {
+        cx.layout_node(self.panel_id, true, |_cx| {
             if self.inner_node.is_none() {
-                self.inner_node = Some(self.id.new_taffy_node());
+                self.inner_node = Some(self.panel_id.new_taffy_node());
             }
             let view_size = self.with_untracked(|x| x.view_size());
-            debug!("layout view_size={view_size:?}");
+            // debug!("layout view_size={view_size:?}");
             let inner_node = self.inner_node.unwrap();
             let style = Style::new()
                 .width(view_size.width)
                 .height(view_size.height)
                 .to_taffy_style();
-            self.id.set_taffy_style(inner_node, style);
+            self.panel_id.set_taffy_style(inner_node, style);
 
             vec![inner_node]
         })

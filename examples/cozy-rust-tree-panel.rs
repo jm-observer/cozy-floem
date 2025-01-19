@@ -1,26 +1,23 @@
 use cozy_floem::views::{
-    drag_line::x_drag_line,
-    panel::{DisplayId, DocManager, DocStyle, panel},
-    tree_with_panel::{
-        data::{Level, StyledText, TreeNode},
-        view_tree
-    }
+    panel::DocStyle,
+    tree_with_panel::data::StyledText
 };
 use floem::{
-    Application, View, ViewId,
+    Application, View,
     keyboard::{Key, NamedKey},
     kurbo::Point,
-    prelude::{Decorators, RwSignal, SignalGet, SignalUpdate},
-    reactive::{ReadSignal, Scope},
-    views::stack,
+    prelude::{Decorators, SignalGet, SignalUpdate},
+    reactive::Scope,
     window::WindowConfig
 };
-use log::{LevelFilter::Info, error};
+use log::LevelFilter::Info;
 use rust_resolve::{
-    ExtChannel, create_signal_from_channel, run_command
+    run_command
 };
-use std::thread;
 use tokio::process::Command;
+use cozy_floem::channel::ExtChannel;
+use cozy_floem::views::tree_with_panel::data::{TreePanelData};
+use cozy_floem::views::tree_with_panel::tree_with_panel;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -33,47 +30,13 @@ fn main() -> anyhow::Result<()> {
     .build();
 
     let cx = Scope::new();
-    let (read_signal, channel, send) =
-        create_signal_from_channel::<StyledText>(cx);
-
-    let hover_hyperlink = cx.create_rw_signal(None);
-    let simple_doc = DocManager::new(
-        cx,
-        ViewId::new(),
-        hover_hyperlink,
-        DocStyle::default()
-    );
-    let node = cx.create_rw_signal(TreeNode {
-        display_id: DisplayId::All,
-        cx,
-        children: vec![],
-        open: cx.create_rw_signal(true),
-        level: cx.create_rw_signal(Level::None)
-    });
-    let read_node = node.read_only();
-    let left_width = cx.create_rw_signal(200.0);
-
-    cx.create_effect(move |_| {
-        if let Some(line) = read_signal.get() {
-            simple_doc.update(|x| {
-                node.update(|x| {
-                    x.add_child(line.id.display_id(), line.level)
-                });
-                if let Err(err) = x.append_lines(line) {
-                    error!("{err:?}");
-                }
-            });
-        }
-    });
-    thread::spawn(|| {
-        run(channel);
-        send(())
-    });
+    let data = TreePanelData::new(cx, DocStyle::default());
+    data.run(_run);
     let config =
         WindowConfig::default().position(Point::new(300.0, 300.));
     Application::new()
         .window(
-            move |_| app_view(read_node, simple_doc, left_width),
+            move |_| app_view(data),
             Some(config)
         )
         .run();
@@ -81,26 +44,9 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn app_view(
-    node: ReadSignal<TreeNode>,
-    doc: DocManager,
-    left_width: RwSignal<f64>
+    data: TreePanelData,
 ) -> impl View {
-    let view = stack((
-        view_tree(node, doc).style(move |x| {
-            let width = left_width.get();
-            x.width(width)
-                .height_full()
-                .border_left(1.)
-                .border_top(1.)
-                .border_bottom(1.)
-                .border_right(1.0)
-        }),
-        x_drag_line(left_width).style(move |s| {
-            s.width(6.0).height_full().margin_left(-6.0)
-        }),
-        panel(doc).style(|x| x.flex_grow(1.).height_full())
-    ))
-    .style(|x| x.height(300.0).width(800.0));
+    let view = tree_with_panel(data)    .style(|x| x.height(300.0).width(800.0));
     let id = view.id();
 
     view.on_key_up(
@@ -108,13 +54,6 @@ fn app_view(
         |m| m.is_empty(),
         move |_| id.inspect()
     )
-}
-
-#[tokio::main(flavor = "current_thread")]
-pub async fn run(channel: ExtChannel<StyledText>) {
-    if let Err(err) = _run(channel).await {
-        error!("{:?}", err);
-    }
 }
 
 async fn _run(channel: ExtChannel<StyledText>) -> anyhow::Result<()> {

@@ -1,7 +1,6 @@
 use crate::views::{
-    panel::DocManager,
     svg_from_fn,
-    tree_with_panel::data::{Level, TreeNode}
+    tree_with_panel::data::Level
 };
 use floem::{
     View,
@@ -9,15 +8,40 @@ use floem::{
         Decorators, SignalGet, SignalUpdate, VirtualDirection,
         VirtualItemSize, container, scroll, stack, virtual_stack
     },
-    reactive::ReadSignal,
     style::AlignItems,
     views::static_label
 };
+use crate::views::drag_line::x_drag_line;
+use crate::views::panel::panel;
+use crate::views::tree_with_panel::data::TreePanelData;
 
-pub fn view_tree(
-    node: ReadSignal<TreeNode>,
-    doc: DocManager
+
+
+pub fn tree_with_panel(
+    data: TreePanelData,
 ) -> impl View {
+    let left_width = data.left_width;
+    let doc = data.doc;
+    stack((
+        view_tree(data).style(move |x| {
+            let width = left_width.get();
+            x.width(width)
+                .height_full()
+                .border_left(1.)
+                .border_top(1.)
+                .border_bottom(1.)
+                .border_right(1.0)
+        }),
+        x_drag_line(left_width).style(move |s| {
+            s.width(6.0).height_full().margin_left(-6.0)
+        }),
+        panel(doc).style(|x| x.flex_grow(1.).height_full())
+    ))
+}
+fn view_tree(
+    data: TreePanelData
+) -> impl View {
+    let node = data.node;
     scroll(
         virtual_stack(
             VirtualDirection::Vertical,
@@ -63,7 +87,7 @@ pub fn view_tree(
                 static_label(rw_data.display_id.head()).style(move |x| x.height(23.).font_size(13.).align_self(AlignItems::Start))
                     .on_click_stop(move |_ | {
                         let value = id.clone();
-                        doc.update(move |x| {
+                        data.doc.update(move |x| {
                             x.update_display(value.clone());
                         });
                     })

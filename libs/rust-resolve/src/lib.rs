@@ -22,6 +22,7 @@ use tokio::{
     process::Command,
     sync::mpsc
 };
+use cozy_floem::channel::ExtChannel;
 
 pub enum OutputLine {
     StdOut(String),
@@ -194,82 +195,6 @@ pub async fn run_command(
     Ok(())
 }
 
-pub fn create_signal_from_channel<T: Send + Clone + 'static>(
-    cx: Scope
-) -> (ReadSignal<Option<T>>, ExtChannel<T>, impl FnOnce(())) {
-    let (read, write) = cx.create_signal(None);
-    let cx = cx.create_child();
-
-    let trigger = with_scope(cx, ExtSendTrigger::new);
-
-    let channel_closed = cx.create_rw_signal(false);
-
-    let data = Arc::new(Mutex::new(VecDeque::new()));
-
-    {
-        let data = data.clone();
-        cx.create_effect(move |_| {
-            trigger.track();
-            while let Some(value) = data.lock().pop_front() {
-                write.set(Some(value));
-            }
-
-            if channel_closed.get() {
-                cx.dispose();
-            }
-        });
-    }
-
-    let send = create_ext_action(cx, move |_| {
-        channel_closed.set(true);
-    });
-
-    (read, ExtChannel { trigger, data }, send)
-}
-
-pub struct ExtChannel<T: Send + Clone + 'static> {
-    trigger: ExtSendTrigger,
-    data:    Arc<Mutex<VecDeque<T>>>
-}
-
-impl<T: Send + Clone + 'static> ExtChannel<T> {
-    pub fn send(&mut self, event: T) {
-        self.data.lock().push_back(event);
-        register_ext_trigger(self.trigger);
-    }
-}
-
-// pub struct PanelStyle {
-//     pub font_size: f32,
-//     font_family: String,
-//     pub line_height: f32,
-//     pub error_color: Color,
-//     pub warn_color: Color,
-//     pub code_relative: Color,
-//     pub hyperlink_color: Color,
-// }
-//
-// impl PanelStyle {
-//     pub fn new(
-//         font_size: f32,
-//         font_family: String,
-//         line_height: f32,
-//     ) -> Self {
-//         Self {
-//             font_size,
-//             font_family,
-//             line_height,
-//             error_color: Color::RED,
-//             warn_color: Color::YELLOW,
-//             code_relative: Color::rgb(116., 177., 241.),
-//             hyperlink_color: Color::BLUE,
-//         }
-//     }
-//
-//     pub fn font_family(&self) -> Vec<FamilyOwned> {
-//         FamilyOwned::parse_list(&self.font_family).collect()
-//     }
-// }
 
 fn resolve_hyperlink_from_message(
     msg: &CompilerMessage,

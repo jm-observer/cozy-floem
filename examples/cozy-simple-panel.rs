@@ -4,16 +4,17 @@ use cozy_floem::views::{
     tree_with_panel::data::{Level, StyledText}
 };
 use floem::{
-    View, ViewId,
+    View,
     keyboard::{Key, NamedKey},
     peniko::Color,
     prelude::{Decorators, SignalGet},
     reactive::Scope,
     text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight}
 };
-use log::{LevelFilter::Info, error};
-use rust_resolve::{ExtChannel, create_signal_from_channel};
-use std::{borrow::Cow, thread, time::Duration};
+use log::LevelFilter::Info;
+use std::{borrow::Cow, time::Duration};
+use cozy_floem::channel::ExtChannel;
+use cozy_floem::views::tree_with_panel::data::TreePanelData;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -25,34 +26,9 @@ fn main() -> anyhow::Result<()> {
     .build();
 
     let cx = Scope::new();
-    let (read_signal, channel, send) =
-        create_signal_from_channel::<StyledText>(cx);
-
-    let hover_hyperlink = cx.create_rw_signal(None);
-    let simple_doc = DocManager::new(
-        cx,
-        ViewId::new(),
-        hover_hyperlink,
-        DocStyle::default()
-    );
-
-    cx.create_effect(move |_| {
-        if let Some(line) = read_signal.get() {
-            simple_doc.update(|x| {
-                if let Err(err) = x.append_lines(line) {
-                    error!("{err:?}");
-                }
-            });
-        }
-    });
-
-    // let style =
-    //     PanelStyle::new(13.0, "JetBrains Mono".to_string(), 23.0);
-    thread::spawn(|| {
-        init_content(channel);
-        send(())
-    });
-    floem::launch(move || app_view(simple_doc));
+    let data = TreePanelData::new(cx, DocStyle::default());
+    data.run(init_content);
+    floem::launch(move || app_view(data.doc));
     Ok(())
 }
 
@@ -66,7 +42,7 @@ fn app_view(simple_doc: DocManager) -> impl View {
     )
 }
 
-pub(crate) fn init_content(mut channel: ExtChannel<StyledText>) {
+async fn init_content(mut channel: ExtChannel<StyledText>) -> anyhow::Result<()> {
     let family = Cow::Owned(
         FamilyOwned::parse_list("JetBrains Mono").collect()
     );
@@ -110,6 +86,7 @@ pub(crate) fn init_content(mut channel: ExtChannel<StyledText>) {
             hyperlink:   vec![]
         };
         channel.send(line);
-        thread::sleep(Duration::from_millis(800));
+        tokio::time::sleep(Duration::from_millis(800)).await;
     }
+    Ok(())
 }

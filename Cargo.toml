@@ -29,9 +29,10 @@ floem = {workspace = true}
 lapce-xi-rope = {workspace = true}
 doc = {workspace = true}
 anyhow = {workspace = true}
-tokio = "1.43.0"
+tokio = { version = "1.43.0", features = ["time"] }
 cargo_metadata = {workspace = true}
 ansi-to-style = {workspace = true}
+parking_lot = {workspace = true}
 
 [dev-dependencies]
 custom-utils = {workspace = true}
