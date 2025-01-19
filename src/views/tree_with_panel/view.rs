@@ -1,16 +1,22 @@
-use floem::prelude::{container, Decorators, scroll, SignalGet, SignalUpdate, stack, svg, virtual_stack, VirtualDirection, VirtualItemSize};
-use floem::reactive::ReadSignal;
-use floem::style::{AlignItems};
-use floem::View;
-use floem::views::static_label;
-use log::error;
-use crate::views::svg_from_fn;
-use crate::views::tree_with_panel::data::panel::{DocManager};
-use crate::views::tree_with_panel::data::tree::{Level, TreeNode};
+use crate::views::{
+    panel::DocManager,
+    svg_from_fn,
+    tree_with_panel::data::{Level, TreeNode}
+};
+use floem::{
+    View,
+    prelude::{
+        Decorators, SignalGet, SignalUpdate, VirtualDirection,
+        VirtualItemSize, container, scroll, stack, virtual_stack
+    },
+    reactive::ReadSignal,
+    style::AlignItems,
+    views::static_label
+};
 
 pub fn view_tree(
     node: ReadSignal<TreeNode>,
-    doc: DocManager,
+    doc: DocManager
 ) -> impl View {
     scroll(
         virtual_stack(
@@ -54,7 +60,7 @@ pub fn view_tree(
                             s.size(size, size)
                         }
                     })),
-                static_label(&rw_data.display_id.head()).style(move |x| x.height(23.).font_size(13.).align_self(AlignItems::Start))
+                static_label(rw_data.display_id.head()).style(move |x| x.height(23.).font_size(13.).align_self(AlignItems::Start))
                     .on_click_stop(move |_ | {
                         let value = id.clone();
                         doc.update(move |x| {

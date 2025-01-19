@@ -1,10 +1,8 @@
-use floem::prelude::Svg;
-use floem::reactive::create_effect;
-use floem::View;
+use floem::{View, prelude::Svg, reactive::create_effect};
 
-pub mod tree_with_panel;
 pub mod drag_line;
-
+pub mod panel;
+pub mod tree_with_panel;
 
 pub fn svg_from_fn(svg_str: impl Fn() -> String + 'static) -> Svg {
     let content = svg_str();

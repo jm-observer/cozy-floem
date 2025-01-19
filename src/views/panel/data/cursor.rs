@@ -9,7 +9,7 @@ pub enum Position {
 
 #[derive(Clone, Debug)]
 pub struct Cursor {
-    pub dragging:     bool,
+    pub dragging: bool,
     pub position: Position
 }
 

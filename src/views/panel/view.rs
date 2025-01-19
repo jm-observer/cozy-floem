@@ -1,5 +1,4 @@
-
-use crate::views::tree_with_panel::data::panel::{DocManager};
+use crate::views::panel::data::DocManager;
 use floem::{
     Renderer, View, ViewId,
     context::{PaintCx, StyleCx},
@@ -7,7 +6,7 @@ use floem::{
     keyboard::Key,
     kurbo::{Line, Point, Rect, Stroke},
     peniko::Color,
-    prelude::{Decorators},
+    prelude::Decorators,
     reactive::SignalGet,
     style::{CursorStyle, Style},
     taffy::NodeId,
@@ -16,13 +15,8 @@ use floem::{
 use log::{debug, error};
 
 pub fn panel(doc: DocManager) -> impl View {
-    let (hover_hyperlink, id) =
-        doc.with_untracked(|x| (x.hover_hyperlink, x.id));
-    let view = Panel {
-        id,
-        inner_node: None,
-        doc
-    }
+    let hover_hyperlink = doc.with_untracked(|x| x.hover_hyperlink);
+    let view = doc
         .on_event_cont(EventListener::PointerDown, move |event| {
             if let Event::PointerDown(pointer_event) = event {
                 let rs = doc.try_update(|x| {
@@ -49,8 +43,9 @@ pub fn panel(doc: DocManager) -> impl View {
         })
         .on_event_cont(EventListener::PointerUp, move |event| {
             if let Event::PointerUp(pointer_event) = event {
-                let rs = doc
-                    .try_update(|x| x.pointer_up(pointer_event.clone()));
+                let rs = doc.try_update(|x| {
+                    x.pointer_up(pointer_event.clone())
+                });
                 match rs {
                     Some(Err(err)) => error!("{err:?}"),
                     None => error!("doc try update point up fail"),
@@ -63,9 +58,11 @@ pub fn panel(doc: DocManager) -> impl View {
             Key::Character("c".into()),
             |modifiers| modifiers.control(),
             move |_| {
-                doc.with_untracked(|x| if let Err(err) = x.copy_select() {
-                    error!("{err:?}");
-                }) ;
+                doc.with_untracked(|x| {
+                    if let Err(err) = x.copy_select() {
+                        error!("{err:?}");
+                    }
+                });
             }
         )
         .style(move |x| {
@@ -105,7 +102,7 @@ pub struct Panel {
     pub doc:        DocManager
 }
 
-impl View for Panel {
+impl View for DocManager {
     fn id(&self) -> ViewId {
         self.id
     }
@@ -129,8 +126,7 @@ impl View for Panel {
             if self.inner_node.is_none() {
                 self.inner_node = Some(self.id.new_taffy_node());
             }
-            let view_size =
-                self.doc.with_untracked(|x| x.view_size());
+            let view_size = self.with_untracked(|x| x.view_size());
             debug!("layout view_size={view_size:?}");
             let inner_node = self.inner_node.unwrap();
             let style = Style::new()
@@ -159,7 +155,7 @@ impl View for Panel {
     fn paint(&mut self, cx: &mut PaintCx) {
         // debug!("paint");
         let (viewport, lines, position_of_cursor, selections, style) =
-            self.doc.with_untracked(|x| {
+            self.with_untracked(|x| {
                 (
                     x.viewport,
                     x.viewport_lines(),

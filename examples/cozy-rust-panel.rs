@@ -1,23 +1,22 @@
-use cozy_floem::views::tree_with_panel::{data::StyledText, panel};
+use cozy_floem::views::{
+    panel::{DocManager, DocStyle, panel},
+    tree_with_panel::data::StyledText
+};
 use floem::{
-    Application, keyboard::{Key, NamedKey}, kurbo::Point,
-    prelude::{
-        create_rw_signal, Decorators, SignalGet,
-    },
+    Application, View, ViewId,
+    keyboard::{Key, NamedKey},
+    kurbo::Point,
+    prelude::{Decorators, SignalGet, create_rw_signal},
     reactive::Scope,
-    View,
-    ViewId,
-    views::{stack, static_label},
+    views::stack,
     window::WindowConfig
 };
-use log::{error, LevelFilter::Info};
+use log::{LevelFilter::Info, error};
 use rust_resolve::{
-    create_signal_from_channel, ExtChannel, run_command
+    ExtChannel, create_signal_from_channel, run_command
 };
 use std::thread;
 use tokio::process::Command;
-use cozy_floem::views::tree_with_panel::data::lines::DisplayStrategy;
-use cozy_floem::views::tree_with_panel::data::panel::{DocManager};
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -35,7 +34,12 @@ fn main() -> anyhow::Result<()> {
 
     let hover_hyperlink = create_rw_signal(None);
 
-    let simple_doc = DocManager::new(cx, ViewId::new(), hover_hyperlink);
+    let simple_doc = DocManager::new(
+        cx,
+        ViewId::new(),
+        hover_hyperlink,
+        DocStyle::default()
+    );
 
     cx.create_effect(move |_| {
         if let Some(line) = read_signal.get() {
@@ -43,7 +47,6 @@ fn main() -> anyhow::Result<()> {
                 if let Err(err) = x.append_lines(line) {
                     error!("{err:?}");
                 }
-                // info!("{}", x.visual_line.len());
             });
         }
     });
@@ -68,19 +71,19 @@ fn main() -> anyhow::Result<()> {
 fn app_view(simple_doc: DocManager) -> impl View {
     let view = stack((
         panel(simple_doc).style(|x| x.width(600.).height(300.)),
-        static_label("click")
-            .style(|x| x.width(50.).height(50.))
-            .on_click_stop(move |_| {
-                simple_doc.update(|x| {
-                    let src = match &x.lines.display_strategy {
-                        DisplayStrategy::Viewport => {
-                            x.lines.ropes.keys().next().cloned()
-                        },
-                        DisplayStrategy::TextSrc(_) => None
-                    };
-                    x.update_display(src);
-                });
-            })
+        // static_label("click")
+        //     .style(|x| x.width(50.).height(50.))
+        //     .on_click_stop(move |_| {
+        //         simple_doc.update(|x| {
+        //             let src = match &x.lines.display_strategy {
+        //                 DisplayStrategy::Viewport => {
+        //                     x.lines.ropes.keys().next().cloned()
+        //                 },
+        //                 DisplayStrategy::TextSrc(_) => None
+        //             };
+        //             x.update_display(src);
+        //         });
+        //     })
     ));
     let id = view.id();
 

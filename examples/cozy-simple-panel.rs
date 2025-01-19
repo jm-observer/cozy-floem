@@ -1,20 +1,19 @@
 use ansi_to_style::TextStyle;
-use cozy_floem::views::tree_with_panel::{data::StyledText, panel};
-use floem::{
-    keyboard::{Key, NamedKey}, peniko::Color,
-    prelude::{
-        create_rw_signal, Decorators, RwSignal, SignalGet,
-        SignalUpdate
-    },
-    reactive::Scope,
-    text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight},
-    View,
-    ViewId
+use cozy_floem::views::{
+    panel::{DocManager, DocStyle, ErrLevel, TextSrc, panel},
+    tree_with_panel::data::{Level, StyledText}
 };
-use log::{error, LevelFilter::Info};
-use rust_resolve::{create_signal_from_channel, ExtChannel};
+use floem::{
+    View, ViewId,
+    keyboard::{Key, NamedKey},
+    peniko::Color,
+    prelude::{Decorators, SignalGet},
+    reactive::Scope,
+    text::{Attrs, AttrsList, FamilyOwned, LineHeightValue, Weight}
+};
+use log::{LevelFilter::Info, error};
+use rust_resolve::{ExtChannel, create_signal_from_channel};
 use std::{borrow::Cow, thread, time::Duration};
-use cozy_floem::views::tree_with_panel::data::panel::SimpleDoc;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -29,9 +28,13 @@ fn main() -> anyhow::Result<()> {
     let (read_signal, channel, send) =
         create_signal_from_channel::<StyledText>(cx);
 
-    let hover_hyperlink = create_rw_signal(None);
-    let doc = SimpleDoc::new(ViewId::new(), hover_hyperlink);
-    let simple_doc = create_rw_signal(doc);
+    let hover_hyperlink = cx.create_rw_signal(None);
+    let simple_doc = DocManager::new(
+        cx,
+        ViewId::new(),
+        hover_hyperlink,
+        DocStyle::default()
+    );
 
     cx.create_effect(move |_| {
         if let Some(line) = read_signal.get() {
@@ -53,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn app_view(simple_doc: RwSignal<SimpleDoc>) -> impl View {
+fn app_view(simple_doc: DocManager) -> impl View {
     let view = panel(simple_doc);
     let id = view.id();
     view.on_key_up(
@@ -89,7 +92,10 @@ pub(crate) fn init_content(mut channel: ExtChannel<StyledText>) {
             i
         );
         let line = StyledText {
-            id:    None,
+            id:          TextSrc::StdErr {
+                level: ErrLevel::Error
+            },
+            level:       Level::Error,
             styled_text: ansi_to_style::StyledText {
                 text:   content,
                 styles: vec![TextStyle {
