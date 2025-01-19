@@ -15,6 +15,7 @@ use cargo_metadata::PackageId;
 use crate::views::tree_with_panel::data::{StyledLines, VisualLine};
 use crate::views::tree_with_panel::data::panel::DocStyle;
 use anyhow::Result;
+use crate::views::tree_with_panel::data::tree::Level;
 
 #[derive(Clone, Debug)]
 pub enum Hyperlink {
@@ -450,6 +451,7 @@ pub enum TextSrc {
 }
 
 impl TextSrc {
+
     pub fn display_id(&self) -> DisplayId {
         match self {
             TextSrc::StdOut { crate_name, file, .. } => {

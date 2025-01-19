@@ -2,7 +2,7 @@ use floem::prelude::{RwSignal, SignalGet, SignalUpdate, SignalWith};
 use floem::{Clipboard, ViewId};
 use doc::lines::line_ending::LineEnding;
 use floem::pointer::{PointerInputEvent, PointerMoveEvent};
-use log::{error, info};
+use log::{debug, error, info};
 use doc::lines::word::WordCursor;
 use floem::kurbo::{Point, Rect, Size};
 use anyhow::{Result};
@@ -595,19 +595,19 @@ impl SimpleDoc {
 
     fn auto_scroll(&self, force: bool) -> Result<()> {
         if self.auto_scroll || force {
+            let len = self.lines.line_info()?.0.len();
+            let line = self.line_of_offset(len)?;
             let rect = Rect::from_origin_size(
                 Point::new(
                     self.viewport.x0,
-                    self.height_of_line(
-                        self.line_of_offset(self.lines.line_info()?.0.len())?
-                    ),
+                    self.height_of_line(line),
                 ),
                 Size::new(
                     self.style.line_height,
                     self.style.line_height,
                 ),
             );
-            // debug!("auto_scroll {rect:?}");
+            debug!("auto_scroll {rect:?} len={len} line={line}",);
             self.id.scroll_to(Some(rect));
         }
         Ok(())

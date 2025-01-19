@@ -1,9 +1,10 @@
 use std::ops::AddAssign;
 use floem::peniko::Color;
-use floem::prelude::{RwSignal, SignalGet, VirtualVector};
-use floem::reactive::Scope;
+use floem::prelude::{RwSignal, SignalGet, SignalUpdate, VirtualVector};
+use floem::reactive::{batch, Scope};
 use log::debug;
 use crate::views::tree_with_panel::data::lines::{DisplayId};
+use crate::views::tree_with_panel::data::tree::Level::Error;
 
 #[derive(Clone)]
 pub struct TreeNode {
@@ -21,11 +22,31 @@ pub struct TreeNodeData {
     pub level: RwSignal<Level>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
+#[repr(u8)]
 pub enum Level {
     None,
     Warn,
     Error,
+}
+
+impl Level {
+    pub fn update(&mut self, level: Level) {
+        debug!("{:?} {level:?}={}", self, level as u8);
+        if level as u8 > *self as u8 {
+            *self = level
+        }
+        debug!("after {:?}", self);
+        // use Level::*;
+        // if matches!(self, ref level) {
+        //     return;
+        // }
+        // let new_level = match (level, &self) {
+        //     (Error, Warn) | (_, None) => level,
+        //      _ => return,
+        // };
+        // *self = new_level;
+    }
 }
 
 impl TreeNodeData {
@@ -57,21 +78,30 @@ impl TreeNodeData {
 }
 
 impl TreeNode {
-    pub fn add_child(&mut self, id: DisplayId) {
-        debug!("add_child {:?}", id);
+
+    pub fn add_child(&mut self, id: DisplayId, level: Level) {
+        batch(|| self._add_child(id, level));
+    }
+    fn _add_child(&mut self, id: DisplayId, level: Level) {
+        // debug!("add_child {:?}", id);
         match &id {
             DisplayId::All => {}
             DisplayId::Error | DisplayId::Crate { .. } => {
-                if self.children.iter().find(|x| id == x.display_id).is_none() {
-                    self.children.push(TreeNode { cx: self.cx, display_id: id, level: self.cx.create_rw_signal(Level::None), open: self.cx.create_rw_signal(true), children: vec![] })
+                self.level.update(|x| x.update(level));
+                if let Some(item) = self.children.iter_mut().find(|x| id == x.display_id) {
+                    item.level.update(|x| x.update(level));
+                } else {
+                    self.children.push(TreeNode { cx: self.cx, display_id: id, level: self.cx.create_rw_signal(level), open: self.cx.create_rw_signal(true), children: vec![] })
                 }
             }
             DisplayId::CrateFile { crate_name, .. } => {
                 let crate_id = DisplayId::Crate { crate_name: crate_name.clone() };
-                self.add_child(crate_id.clone());
+                self.add_child(crate_id.clone(), level);
                 if let Some(carte_item) = self.children.iter_mut().find(|x| crate_id == x.display_id) {
-                    if carte_item.children.iter().find(|x| id == x.display_id).is_none() {
-                        carte_item.children.push(TreeNode { cx: self.cx, display_id: id, level: self.cx.create_rw_signal(Level::None), open: self.cx.create_rw_signal(false), children: vec![] })
+                    if let Some(item) = carte_item.children.iter_mut().find(|x| id == x.display_id) {
+                        item.level.update(|x| x.update(level));
+                    } else {
+                        carte_item.children.push(TreeNode { cx: self.cx, display_id: id, level: self.cx.create_rw_signal(level), open: self.cx.create_rw_signal(false), children: vec![] })
                     }
                 }
             }
@@ -131,7 +161,7 @@ impl VirtualVector<(usize, usize, TreeNodeData)> for TreeNode {
         let max = range.end;
         let mut index = 0;
         let children = self.get_children(min, max, &mut index, 0);
-        debug!("min={min} max={max} {:?}", children);
+        // debug!("min={min} max={max} {:?}", children);
         children.into_iter()
     }
 }

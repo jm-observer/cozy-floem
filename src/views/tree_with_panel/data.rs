@@ -13,6 +13,7 @@ use floem::{
 use lapce_xi_rope::Rope;
 use std::ops::Range;
 use lines::{Hyperlink, TextSrc};
+use crate::views::tree_with_panel::data::tree::Level;
 
 pub fn ranges_overlap(
     r1: &Range<usize>,
@@ -49,6 +50,7 @@ pub struct VisualLine {
 #[derive(Clone)]
 pub struct StyledText {
     pub id:    TextSrc,
+    pub level: Level,
     pub styled_text: ansi_to_style::StyledText,
     pub hyperlink:   Vec<Hyperlink>,
 }

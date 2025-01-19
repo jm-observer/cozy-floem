@@ -67,7 +67,7 @@ fn svg_str(svg_name: &str) -> String {
         )
         .unwrap(),
         "other" => fs::read_to_string(
-            "resources/svg/folding-compare.svg"
+            "resources/svg/warning.svg"
         )
         .unwrap(),
         "start" => {

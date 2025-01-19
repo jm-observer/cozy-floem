@@ -125,13 +125,13 @@ impl View for Panel {
         &mut self,
         cx: &mut floem::context::LayoutCx
     ) -> floem::taffy::prelude::NodeId {
-        debug!("layout");
         cx.layout_node(self.id, true, |_cx| {
             if self.inner_node.is_none() {
                 self.inner_node = Some(self.id.new_taffy_node());
             }
             let view_size =
                 self.doc.with_untracked(|x| x.view_size());
+            debug!("layout view_size={view_size:?}");
             let inner_node = self.inner_node.unwrap();
             let style = Style::new()
                 .width(view_size.width)
@@ -157,7 +157,7 @@ impl View for Panel {
     }
 
     fn paint(&mut self, cx: &mut PaintCx) {
-        debug!("paint");
+        // debug!("paint");
         let (viewport, lines, position_of_cursor, selections, style) =
             self.doc.with_untracked(|x| {
                 (

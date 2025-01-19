@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
         if let Some(line) = read_signal.get() {
             simple_doc.update(|x| {
                 node.update(|x| {
-                    x.add_child(line.id.display_id())
+                    x.add_child(line.id.display_id(), line.level)
                 });
                 if let Err(err) = x.append_lines(line) {
                     error!("{err:?}");

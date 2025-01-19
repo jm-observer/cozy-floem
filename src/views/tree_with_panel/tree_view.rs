@@ -6,7 +6,7 @@ use floem::views::static_label;
 use log::error;
 use crate::views::svg_from_fn;
 use crate::views::tree_with_panel::data::panel::{DocManager};
-use crate::views::tree_with_panel::data::tree::TreeNode;
+use crate::views::tree_with_panel::data::tree::{Level, TreeNode};
 
 pub fn view_tree(
     node: ReadSignal<TreeNode>,
@@ -17,11 +17,10 @@ pub fn view_tree(
             VirtualDirection::Vertical,
             VirtualItemSize::Fixed(Box::new(move || 20.0)),
             move || node.get(),
-            move |(index, _, _data)| *index,
-            move |(_, level, rw_data)| {
-                error!("view_tree");
+            move |(_index, _, _data)| _data.display_id.clone(),
+            move |(_, retract, rw_data)| {
                 let id = rw_data.display_id.clone();
-                let level_svg = rw_data.track_level_svg();
+                let level = rw_data.level;
                 let level_svg_color = rw_data.track_level_svg_color();
 
                 let click_data = rw_data.open;
@@ -38,7 +37,16 @@ pub fn view_tree(
                             *x = !*x
                         });
                     }),
-                    container(svg(level_svg).style(move |s| {
+                    container(svg_from_fn(move || match level.get() {
+                        Level::None => {
+                            // empty.svg
+                            r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"></svg>"#
+                        }
+                        Level::Warn | Level::Error => {
+                            // warning.svg
+                            r#"<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.56 1h.88l6.54 12.26-.44.74H1.44L1 13.26 7.56 1zM8 2.28L2.28 13H13.7L8 2.28zM8.625 12v-1h-1.25v1h1.25zm-1.25-2V6h1.25v4h-1.25z"/></svg>"#
+                        }
+                    }.to_string()).style(move |s| {
                         let size = 13.0;
                         if let Some(color) = level_svg_color {
                             s.size(size, size).color(color)
@@ -53,24 +61,11 @@ pub fn view_tree(
                             x.update_display(value.clone());
                         });
                     })
-                )).style(move |x| x.margin_left(level as f32 * 13.0))
+                )).style(move |x| x.margin_left(retract as f32 * 13.0))
             },
         )
             .style(|s| s.flex_col().min_width_full().padding(6.0)),
     )
         .style(|s| s.flex_grow(1.0).size_full())
         .scroll_style(|s| s.shrink_to_fit())
-        // .on_event_cont(EventListener::PointerLeave, move |_| {
-        //     capture_signal_clone.highlighted.set(None)
-        // })
-        // .on_click_stop(move |_| capture_signal_clone.selected.set(None))
-        // .scroll_to(move || {
-        //     let focus_line = focus_line.get();
-        //     Some((0.0, focus_line as f64 * 20.0).into())
-        // })
-    // .scroll_to_view(move || {
-    //     let view_id = capture_signal_clone.scroll_to.get();
-    //     println!("{view_id:?}");
-    //     view_id
-    // })
 }

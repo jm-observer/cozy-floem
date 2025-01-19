@@ -12,12 +12,14 @@ use floem::{
 use log::{info, warn};
 use parking_lot::Mutex;
 use std::{collections::VecDeque, sync::Arc};
+use cargo_metadata::diagnostic::DiagnosticLevel;
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
     sync::mpsc,
 };
 use cozy_floem::views::tree_with_panel::data::lines::{ErrLevel, Hyperlink, TextSrc};
+use cozy_floem::views::tree_with_panel::data::tree::Level;
 
 pub enum OutputLine {
     StdOut(String),
@@ -83,6 +85,16 @@ pub async fn run_command(
                             if let Some(rendered) =
                                 &msg.message.rendered
                             {
+                                let level = match msg.message.level {
+                                    DiagnosticLevel::Ice |
+                                    DiagnosticLevel::Error => {Level::Error}
+                                    DiagnosticLevel::Warning => {Level::Warn}
+                                    DiagnosticLevel::FailureNote |
+                                    DiagnosticLevel::Note |
+                                    DiagnosticLevel::Help |
+                                    _ => {Level::None}
+                                };
+
                                 let styled_text =
                                     parse_byte(rendered.as_bytes());
                                 let package_id =
@@ -98,8 +110,11 @@ pub async fn run_command(
                                 });
                                 let text_src = TextSrc::StdOut { package_id, crate_name: msg.target.name, file };
 
+
+
                                 channel.send(StyledText {
                                     id: text_src,
+                                    level,
                                     styled_text,
                                     hyperlink,
                                 });
@@ -131,23 +146,24 @@ pub async fn run_command(
             OutputLine::StdErr(line) => {
                 // log::debug!("StdErr: {}", line);
                 let styled_text = parse_byte(line.as_bytes());
-                let text_src =
+                let (text_src, level) =
                     if styled_text
                         .text
                         .as_str()
                         .trim_start()
                         .starts_with("error")
                     {
-                        TextSrc::StdErr {
+                        (TextSrc::StdErr {
                             level: ErrLevel::Error
-                        }
+                        }, Level::Error)
                     } else {
-                        TextSrc::StdErr {
+                        (TextSrc::StdErr {
                             level: ErrLevel::Other
-                        }
+                        }, Level::None)
                     };
                 channel.send(StyledText {
                     id: text_src,
+                    level,
                     styled_text,
                     hyperlink: vec![],
                 });
