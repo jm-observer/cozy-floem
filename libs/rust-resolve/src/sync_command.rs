@@ -1,65 +1,46 @@
 use crate::{resolve_stderr, resolve_stdout};
 use anyhow::anyhow;
 use cozy_floem::{
-    channel::ExtChannel, views::tree_with_panel::data::StyledText
+    channel::ExtChannel, views::tree_with_panel::data::StyledText,
 };
 use polling::{Event, PollMode, os::iocp::PollerIocpExt};
-use std::{
-    io::BufRead, os::windows::io::AsRawHandle, process::Command
-};
+use std::{io::BufRead, os::windows::io::AsRawHandle, process::Command, thread};
+use std::io::{BufReader, Read};
+use log::{error, info};
+use polling::os::iocp::AsRawWaitable;
+use crate::async_command::OutputLine;
 
 pub fn run_command(
     mut command: Command,
-    mut channel: ExtChannel<StyledText>
+    mut channel: ExtChannel<StyledText>,
 ) -> anyhow::Result<()> {
     let mut child = command
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
         .expect("Failed to start cargo build");
-
-    let poller = polling::Poller::new()?;
     let stdout =
         child.stdout.take().ok_or(anyhow!("stdout is none"))?;
     let stderr =
         child.stderr.take().ok_or(anyhow!("stderr is none"))?;
-    unsafe {
-        poller.add_waitable(
-            stdout.as_raw_handle(),
-            Event::readable(1),
-            PollMode::Oneshot
-        )?;
-        poller.add_waitable(
-            stderr.as_raw_handle(),
-            Event::readable(2),
-            PollMode::Oneshot
-        )?;
-    }
-    let mut events = polling::Events::new();
-    let mut out_reader = std::io::BufReader::new(stdout).lines();
-    let mut error_reader = std::io::BufReader::new(stderr).lines();
 
-    while let Ok(n) = poller.wait(&mut events, None) {
-        if n == 0 {
-            break;
+    let mut out_lines = BufReader::new(stdout).lines();
+    let mut err_lines = BufReader::new(stderr).lines();
+    let mut sync_channel = channel.clone();
+    let out_thread = thread::spawn(move || while let Some(Ok(line)) = out_lines.next() {
+        if let Some(text) = resolve_stdout(&line) {
+            sync_channel.send(text);
         }
-        for event in events.iter() {
-            match event.key {
-                1 => {
-                    while let Some(Ok(line)) = out_reader.next() {
-                        if let Some(text) = resolve_stdout(&line) {
-                            channel.send(text);
-                        }
-                    }
-                },
-                2 => {
-                    while let Some(Ok(line)) = error_reader.next() {
-                        channel.send(resolve_stderr(&line));
-                    }
-                },
-                _ => {}
-            }
-        }
+    });
+    let err_thread = thread::spawn(move || while let Some(Ok(line)) = err_lines.next() {
+        channel.send(resolve_stderr(&line));
+    });
+
+    if let Err(err) = out_thread.join() {
+        error!("{err:?}");
+    }
+    if let Err(err) = err_thread.join() {
+        error!("{err:?}");
     }
     Ok(())
 }
