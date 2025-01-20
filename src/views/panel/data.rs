@@ -31,7 +31,7 @@ impl DocManager {
         Self {
             panel_id:   id,
             inner_node: None,
-            doc:        cx.create_rw_signal_with_track(
+            doc:        cx.create_rw_signal(
                 SimpleDoc::new(id, hover_hyperlink, doc_style)
             )
         }
@@ -138,8 +138,8 @@ impl SimpleDoc {
         let line = (point.y / self.style.line_height) as usize;
         if line >= last_line {
             return Ok((
-                self.lines.line_info()?.0.len() - 1,
-                last_line - 1
+                self.lines.line_info()?.0.len().max(1) - 1,
+                last_line.max(1) - 1
             ));
         }
         let text = self.lines.text_layout_of_line(line)?;
