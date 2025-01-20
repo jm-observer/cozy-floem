@@ -3,12 +3,9 @@ use anyhow::anyhow;
 use cozy_floem::{
     channel::ExtChannel, views::tree_with_panel::data::StyledText,
 };
-use polling::{Event, PollMode, os::iocp::PollerIocpExt};
-use std::{io::BufRead, os::windows::io::AsRawHandle, process::Command, thread};
-use std::io::{BufReader, Read};
+use std::{io::BufRead, process::Command, thread};
+use std::io::{BufReader};
 use log::{error, info};
-use polling::os::iocp::AsRawWaitable;
-use crate::async_command::OutputLine;
 
 pub fn run_command(
     mut command: Command,
@@ -42,5 +39,6 @@ pub fn run_command(
     if let Err(err) = err_thread.join() {
         error!("{err:?}");
     }
+    info!("run end");
     Ok(())
 }
