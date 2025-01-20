@@ -31,9 +31,11 @@ impl DocManager {
         Self {
             panel_id:   id,
             inner_node: None,
-            doc:        cx.create_rw_signal(
-                SimpleDoc::new(id, hover_hyperlink, doc_style)
-            )
+            doc:        cx.create_rw_signal(SimpleDoc::new(
+                id,
+                hover_hyperlink,
+                doc_style
+            ))
         }
     }
 

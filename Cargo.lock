@@ -3178,6 +3178,7 @@ dependencies = [
  "lapce-xi-rope 0.3.2 (git+https://github.com/jm-observer/xi-editor.git)",
  "log",
  "parking_lot",
+ "polling",
  "serde_json",
  "tokio",
 ]

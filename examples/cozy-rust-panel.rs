@@ -15,7 +15,7 @@ use floem::{
     window::WindowConfig
 };
 use log::{LevelFilter::Info, error};
-use rust_resolve::run_command;
+use rust_resolve::async_command::run_command;
 use tokio::process::Command;
 
 fn main() -> anyhow::Result<()> {
@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
 
     let cx = Scope::new();
     let data = TreePanelData::new(cx, DocStyle::default());
-    data.run(_run);
+    data.run_with_async_task(_run);
     let config =
         WindowConfig::default().position(Point::new(300.0, 300.));
     Application::new()

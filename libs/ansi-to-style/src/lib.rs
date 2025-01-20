@@ -4,7 +4,7 @@ use std::ops::Range;
 use vte::{Params, Parser, Perform};
 
 #[derive(Debug, Default, Clone)]
-pub struct StyledText {
+pub struct TextWithStyle {
     pub text:   String,
     pub styles: Vec<TextStyle>
 }
@@ -194,14 +194,14 @@ impl StyleState {
 }
 
 struct TerminalParser {
-    output:      StyledText,
+    output:      TextWithStyle,
     style_state: StyleState
 }
 
 impl TerminalParser {
     fn new() -> Self {
         Self {
-            output:      StyledText::default(),
+            output:      TextWithStyle::default(),
             style_state: StyleState::None
         }
     }
@@ -461,7 +461,7 @@ pub fn index_to_rgb(index: u8) -> [u8; 3] {
     }
 }
 
-pub fn parse_byte(input: &[u8]) -> StyledText {
+pub fn parse_byte(input: &[u8]) -> TextWithStyle {
     let mut parser = Parser::new();
     let mut handler = TerminalParser::new();
     parser.advance(&mut handler, input);

@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
 
     let cx = Scope::new();
     let data = TreePanelData::new(cx, DocStyle::default());
-    data.run(init_content);
+    data.run_with_async_task(init_content);
     floem::launch(move || app_view(data.doc));
     Ok(())
 }
@@ -75,7 +75,7 @@ async fn init_content(
                 level: ErrLevel::Error
             },
             level:       Level::Error,
-            styled_text: ansi_to_style::StyledText {
+            styled_text: ansi_to_style::TextWithStyle {
                 text:   content,
                 styles: vec![TextStyle {
                     range:     3..12,

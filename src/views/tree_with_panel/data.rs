@@ -67,7 +67,7 @@ impl TreePanelData {
         }
     }
 
-    pub fn run<F, Fut>(&self, f: F)
+    pub fn run_with_async_task<F, Fut>(&self, f: F)
     where
         F: Fn(
                 ExtChannel<
@@ -94,6 +94,39 @@ impl TreePanelData {
         });
         thread::spawn(|| {
             async_main_run(channel, f);
+            send(())
+        });
+    }
+
+    pub fn run_with_sync_task<F>(&self, f: F)
+    where
+        F: Fn(
+                ExtChannel<
+                    crate::views::tree_with_panel::data::StyledText
+                >
+            ) -> anyhow::Result<()>
+            + Sync
+            + Send
+            + 'static {
+        let (read_signal, channel, send) =
+            create_signal_from_channel::<StyledText>(self.cx);
+        let data = self.clone();
+        self.cx.create_effect(move |_| {
+            if let Some(line) = read_signal.get() {
+                data.node.update(|x| {
+                    x.add_child(line.id.display_id(), line.level)
+                });
+                data.doc.update(|x| {
+                    if let Err(err) = x.append_lines(line) {
+                        error!("{err:?}");
+                    }
+                });
+            }
+        });
+        thread::spawn(move || {
+            if let Err(err) = f(channel) {
+                error!("{err:?}");
+            }
             send(())
         });
     }
@@ -129,7 +162,7 @@ pub struct VisualLine {
 pub struct StyledText {
     pub id:          TextSrc,
     pub level:       Level,
-    pub styled_text: ansi_to_style::StyledText,
+    pub styled_text: ansi_to_style::TextWithStyle,
     pub hyperlink:   Vec<Hyperlink>
 }
 

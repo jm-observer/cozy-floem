@@ -17,8 +17,7 @@ use floem::{
     window::WindowConfig
 };
 use log::LevelFilter::Info;
-use rust_resolve::async_command::run_command;
-use tokio::process::Command;
+use std::process::Command;
 
 fn main() -> anyhow::Result<()> {
     let _ = custom_utils::logger::logger_feature(
@@ -32,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 
     let cx = Scope::new();
     let data = TreePanelData::new(cx, DocStyle::default());
-    data.run_with_async_task(_run);
+    data.run_with_sync_task(_run);
     let config =
         WindowConfig::default().position(Point::new(300.0, 300.));
     Application::new()
@@ -53,14 +52,14 @@ fn app_view(data: TreePanelData) -> impl View {
     )
 }
 
-async fn _run(channel: ExtChannel<StyledText>) -> anyhow::Result<()> {
+fn _run(channel: ExtChannel<StyledText>) -> anyhow::Result<()> {
     let mut command = Command::new("cargo");
     command.args([
         "clean",
         "--manifest-path",
         "D:\\git\\check_2\\Cargo.toml"
     ]);
-    command.output().await?;
+    command.output()?;
 
     let mut command = Command::new("cargo");
     command.args([
@@ -74,6 +73,6 @@ async fn _run(channel: ExtChannel<StyledText>) -> anyhow::Result<()> {
         "--bin",
         "check"
     ]);
-    run_command(command, channel).await?;
+    rust_resolve::sync_command::run_command(command, channel)?;
     Ok(())
 }

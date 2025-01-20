@@ -38,7 +38,7 @@ parking_lot = {workspace = true}
 custom-utils = {workspace = true}
 rust-resolve = { path = "libs/rust-resolve"}
 tokio = {workspace = true}
-ansi-to-style = {workspace = true}
+#ansi-to-style = {workspace = true}
 
 [patch."https://github.com/jm-observer/doc.git"]
 doc = {path = "../doc"}
