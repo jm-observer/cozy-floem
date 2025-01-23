@@ -6,9 +6,11 @@ resolver = "2"
 [workspace.dependencies]
 log = "=0.4.22"
 custom-utils = { version = "=0.10.17", default-features = false, features = ["dev", "logger"] }
-floem = { git="https://github.com/jm-observer/floem.git", branch = "main-fork-2", features = ["editor", "serde", "default-image-formats", "rfd-async-std", "vger", "track-panic"], default-features = false }
+#floem = { git="https://github.com/jm-observer/floem.git", branch = "main-fork-2", features = ["editor", "serde", "default-image-formats", "rfd-async-std", "vger", "track-panic"], default-features = false }
+floem = {git ="https://github.com/lapce/floem.git", rev = "ec7ea20", features = ["serde", "default-image-formats", "rfd-async-std", "vger"], default-features = false }
+
 lapce-xi-rope = {git = "https://github.com/jm-observer/xi-editor.git", features = ["serde"]}
-doc = {git = "https://github.com/jm-observer/doc.git"}
+doc = {git = "https://github.com/jm-observer/doc.git", rev = "0b042a1"}
 anyhow = "=1.0.95"
 serde_json = "1.0.135"
 tokio = { version = "1.43.0", features = ["io-std", "io-util", "macros", "rt", "sync", "process", "rt-multi-thread", "time"] }
