@@ -1082,6 +1082,7 @@ dependencies = [
  "arc-swap",
  "bitflags 2.8.0",
  "cosmic-text",
+ "custom-utils",
  "directories",
  "floem",
  "hashbrown 0.14.5",
