@@ -2887,14 +2887,15 @@ impl PubUpdateLines {
     }
 
     pub fn update_config(&mut self, config: EditorConfig) -> Result<()> {
-        if self.config != config {
+        // todo
+        // if self.config != config {
             self.config = config;
             self.update_lines_new(OriginLinesDelta::default())?;
             self.on_update_lines();
             self.update_screen_lines();
             self.update_folding_display_items();
             self.trigger_signals();
-        }
+        // }
         Ok(())
     }
 

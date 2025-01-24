@@ -298,9 +298,9 @@ impl TreeNodeData {
 
     pub fn track_level_svg_color(&self) -> Option<Color> {
         match self.level.get() {
-            Level::None => None,
-            Level::Warn => Some(Color::rgb8(255, 204, 102)),
-            Level::Error => Some(Color::rgb8(255, 153, 153))
+        Level::None => None,
+            Level::Warn => Some(Color::from_rgb8(255, 204, 102)),
+            Level::Error => Some(Color::from_rgb8(255, 153, 153))
         }
     }
 }

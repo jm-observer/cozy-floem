@@ -25,7 +25,7 @@ use crate::lines::delta_compute::Offset;
 // }
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct OriginLine {
     pub line_index:        usize,
     /// [start_offset...end_offset)

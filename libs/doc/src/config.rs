@@ -47,7 +47,7 @@ impl std::fmt::Display for WrapStyle {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EditorConfig {
     pub font_family:               String,
     pub font_size:                 usize,

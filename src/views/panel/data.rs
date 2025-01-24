@@ -11,6 +11,7 @@ use floem::{
     taffy::NodeId,
     text::{Attrs, FamilyOwned, LineHeightValue}
 };
+use floem::prelude::palette;
 pub use lines::*;
 use log::{error, info};
 
@@ -90,7 +91,7 @@ impl Default for DocStyle {
             font_family:  "JetBrains Mono".to_string(),
             font_size:    13.0,
             line_height:  23.0,
-            selection_bg: Color::BLUE_VIOLET,
+            selection_bg: palette::css::BLUE_VIOLET,
             fg_color:     Color::BLACK
         }
     }

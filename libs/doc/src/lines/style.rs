@@ -1,13 +1,14 @@
 use floem::peniko::{Brush, Color};
 use floem::{IntoView, prop, style_class, View};
-use floem::prelude::text;
+use floem::prelude::{palette, text};
 use floem::style::{CursorColor, StylePropValue, TextColor};
 use serde::{Deserialize, Serialize};
 use crate::lines::delta_compute::Offset;
 use crate::lines::indent::IndentStyle;
 use crate::lines::text::{RenderWhitespace, WrapMethod};
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NewLineStyle {
     pub origin_line:              usize,
     /// 所在行的起始位置
@@ -43,8 +44,8 @@ prop!(pub ShowIndentGuide: bool {} = false);
 prop!(pub Modal: bool {} = false);
 prop!(pub ModalRelativeLine: bool {} = false);
 prop!(pub SmartTab: bool {} = false);
-prop!(pub PhantomColor: Color {} = Color::DIM_GRAY);
-prop!(pub PlaceholderColor: Color {} = Color::DIM_GRAY);
+prop!(pub PhantomColor: Color {} = palette::css::DIM_GRAY);
+prop!(pub PlaceholderColor: Color {} = palette::css::DIM_GRAY);
 prop!(pub PreeditUnderlineColor: Color {} = Color::WHITE);
 prop!(pub RenderWhitespaceProp: RenderWhitespace {} = RenderWhitespace::None);
 
@@ -61,7 +62,7 @@ impl StylePropValue for IndentStyle {
 }
 
 prop!(pub DropdownShadow: Option<Color> {} = None);
-prop!(pub Foreground: Color { inherited } = Color::rgb8(0x38, 0x3A, 0x42));
+prop!(pub Foreground: Color { inherited } = Color::from_rgb8(0x38, 0x3A, 0x42));
 prop!(pub Focus: Option<Color> {} = None);
 prop!(pub SelectionColor: Color {} = Color::BLACK.multiply_alpha(0.5));
 prop!(pub CurrentLineColor: Option<Color> {  } = None);

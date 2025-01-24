@@ -276,14 +276,14 @@ impl Perform for TerminalParser {
                 30..=37 => {
                     // 标准前景色 https://talyian.github.io/ansicolors/
                     let color = match param {
-                        30 => Color::rgb8(0, 0, 0),
-                        31 => Color::rgb8(204, 0, 0),
-                        32 => Color::rgb8(0, 204, 0),
-                        33 => Color::rgb8(204, 204, 0),
-                        34 => Color::rgb8(0, 0, 204),
-                        35 => Color::rgb8(204, 0, 204),
-                        36 => Color::rgb8(0, 204, 204),
-                        37 => Color::rgb8(204, 204, 204),
+                        30 => Color::from_rgb8(0, 0, 0),
+                        31 => Color::from_rgb8(204, 0, 0),
+                        32 => Color::from_rgb8(0, 204, 0),
+                        33 => Color::from_rgb8(204, 204, 0),
+                        34 => Color::from_rgb8(0, 0, 204),
+                        35 => Color::from_rgb8(204, 0, 204),
+                        36 => Color::from_rgb8(0, 204, 204),
+                        37 => Color::from_rgb8(204, 204, 204),
                         _ => continue
                     };
                     if let Some(style) = self.style_state.init(
@@ -312,7 +312,7 @@ impl Perform for TerminalParser {
                                         None,
                                         None,
                                         None,
-                                        Some(Color::rgb8(
+                                        Some(Color::from_rgb8(
                                             r as u8, g as u8, b as u8
                                         ))
                                     )
@@ -325,9 +325,8 @@ impl Perform for TerminalParser {
                             if let Some(color_idx) =
                                 flat_params.next()
                             {
-                                let color = Color::from(
-                                    index_to_rgb(*color_idx as u8)
-                                );
+                                let rgb = index_to_rgb(*color_idx as u8);
+                                let color = Color::from_rgb8(rgb[0], rgb[1], rgb[2]);
                                 if let Some(style) =
                                     self.style_state.init(
                                         None,
@@ -349,14 +348,14 @@ impl Perform for TerminalParser {
                 40..=47 => {
                     // 标准背景色
                     let color = match param {
-                        40 => Color::rgb8(0, 0, 0),
-                        41 => Color::rgb8(204, 0, 0),
-                        42 => Color::rgb8(0, 204, 0),
-                        43 => Color::rgb8(204, 204, 0),
-                        44 => Color::rgb8(0, 0, 204),
-                        45 => Color::rgb8(204, 0, 204),
-                        46 => Color::rgb8(0, 204, 204),
-                        47 => Color::rgb8(204, 204, 204),
+                        40 => Color::from_rgb8(0, 0, 0),
+                        41 => Color::from_rgb8(204, 0, 0),
+                        42 => Color::from_rgb8(0, 204, 0),
+                        43 => Color::from_rgb8(204, 204, 0),
+                        44 => Color::from_rgb8(0, 0, 204),
+                        45 => Color::from_rgb8(204, 0, 204),
+                        46 => Color::from_rgb8(0, 204, 204),
+                        47 => Color::from_rgb8(204, 204, 204),
                         _ => continue
                     };
                     if let Some(style) = self.style_state.init(
@@ -384,7 +383,7 @@ impl Perform for TerminalParser {
                                         None,
                                         None,
                                         None,
-                                        Some(Color::rgb8(
+                                        Some(Color::from_rgb8(
                                             r as u8, g as u8, b as u8
                                         )),
                                         None
@@ -398,9 +397,11 @@ impl Perform for TerminalParser {
                             if let Some(color_idx) =
                                 flat_params.next()
                             {
-                                let color = Color::from(
-                                    index_to_rgb(*color_idx as u8)
-                                );
+                                let rgb = index_to_rgb(*color_idx as u8);
+                                let color = Color::from_rgb8(rgb[0], rgb[1], rgb[2]);
+                                // let color = Color::from(
+                                //     index_to_rgb(*color_idx as u8)
+                                // );
                                 if let Some(style) =
                                     self.style_state.init(
                                         None,
