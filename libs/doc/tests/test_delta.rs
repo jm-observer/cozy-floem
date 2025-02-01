@@ -1,12 +1,12 @@
-use floem::views::editor::core::command::EditCommand;
-use floem::views::editor::core::register::Register;
 use lapce_xi_rope::{RopeDelta, RopeInfo, DeltaElement, Interval};
 use lapce_xi_rope::tree::Node;
 use doc::lines::EditBuffer;
 use crate::lines_util::{cursor_insert, init_main_2};
 use anyhow::{anyhow, Result};
 use doc::lines::buffer::rope_text::RopeText;
+use doc::lines::command::EditCommand;
 use doc::lines::delta_compute::{CopyDelta, Offset, OffsetDelta, OriginLinesDelta, resolve_delta_compute, resolve_line_delta};
+use doc::lines::register::Register;
 
 mod lines_util;
 

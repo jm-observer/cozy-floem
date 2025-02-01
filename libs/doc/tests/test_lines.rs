@@ -14,10 +14,11 @@ use floem::{
     kurbo::{Point, Rect},
     reactive::SignalUpdate
 };
-use floem::views::editor::core::{command::EditCommand, register::Register};
 use lapce_xi_rope::{DeltaElement, Interval, RopeInfo, spans::SpansBuilder};
 use log::info;
 use lsp_types::Position;
+use doc::lines::command::EditCommand;
+use doc::lines::register::Register;
 
 use crate::lines_util::{cursor_insert, folded_v1, folded_v2, init_empty, init_main, init_main_2, init_semantic_2};
 mod lines_util;
@@ -25,8 +26,8 @@ mod lines_util;
 #[test]
 fn test_performance() -> Result<()> {
     custom_utils::logger::logger_stdout_debug();
-    let _file: PathBuf = "resources/test_code/empty.rs".into();
-    let editor: PathBuf = "resources/test_code/editor.rs".into();
+    let _file: PathBuf = "../../resources/test_code/empty.rs".into();
+    let editor: PathBuf = "../../resources/test_code/editor.rs".into();
     let editor_code = std::fs::read_to_string(editor).unwrap();
     let mut lines = init_empty()?;
 

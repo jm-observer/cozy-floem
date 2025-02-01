@@ -2,9 +2,10 @@ use super::{Buffer, RopeText};
 
 mod editing {
     use lapce_xi_rope::Rope;
+    use crate::lines::edit::EditType;
+    use crate::lines::selection::Selection;
 
     use super::*;
-    use crate::{editor::EditType, selection::Selection};
 
     #[test]
     fn is_pristine() {
@@ -19,8 +20,8 @@ mod editing {
 }
 
 mod motion {
+    use crate::lines::mode::Mode;
     use super::*;
-    use crate::mode::Mode;
 
     #[test]
     fn cannot_move_in_empty_buffer() {

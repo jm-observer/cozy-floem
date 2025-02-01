@@ -6,7 +6,7 @@ resolver = "2"
 log = "=0.4.22"
 custom-utils = { version = "=0.10.17", default-features = false, features = ["dev", "logger"] }
 #floem = { git="https://github.com/jm-observer/floem.git", branch = "main-fork-2", features = ["editor", "serde", "default-image-formats", "rfd-async-std", "vger", "track-panic"], default-features = false }
-floem = {git ="https://github.com/lapce/floem.git", rev = "b7964b2", features = ["serde", "default-image-formats", "rfd-async-std", "vger"], default-features = false }
+floem = {git ="https://github.com/lapce/floem.git", rev = "b35fceb", features = ["serde", "default-image-formats", "rfd-async-std", "vger"], default-features = false }
 lapce-xi-rope = {git = "https://github.com/jm-observer/xi-editor.git", features = ["serde"]}
 doc = {path = "libs/doc"}
 anyhow = "=1.0.95"

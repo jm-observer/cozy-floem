@@ -69,8 +69,8 @@ impl<'a> WordCursor<'a> {
     /// **Example:**
     ///
     /// ```rust
-    /// # use floem_editor_core::word::WordCursor;
-    /// # use floem_editor_core::mode::Mode;
+    /// # use doc::lines::word::WordCursor;
+    /// # use doc::lines::mode::Mode;
     /// # use lapce_xi_rope::Rope;
     /// let rope = Rope::from("Hello world");
     /// let mut cursor = WordCursor::new(&rope, 4);
@@ -111,7 +111,7 @@ impl<'a> WordCursor<'a> {
     /// **Example:**
     ///
     /// ```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let text = "violet are blue";
     /// let rope = Rope::from(text);
@@ -181,7 +181,7 @@ impl<'a> WordCursor<'a> {
     /// **Example:**
     ///
     /// ```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let rope = Rope::from("    world");
     /// let mut cursor = WordCursor::new(&rope, 0);
@@ -205,7 +205,7 @@ impl<'a> WordCursor<'a> {
     /// position to the boundary found. **Example:**
     ///
     /// ```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let rope = Rope::from("Hello world");
     /// let mut cursor = WordCursor::new(&rope, 0);
@@ -234,7 +234,7 @@ impl<'a> WordCursor<'a> {
     /// boundary found. **Example:**
     ///
     /// ```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let rope = Rope::from("Hello world");
     /// let mut cursor = WordCursor::new(&rope, 3);
@@ -265,7 +265,7 @@ impl<'a> WordCursor<'a> {
     /// *
     ///
     /// ```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let text = "violet, are\n blue";
     /// let rope = Rope::from(text);
@@ -290,7 +290,7 @@ impl<'a> WordCursor<'a> {
     /// *
     ///
     /// ```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let text = "violet, are\n blue";
     /// let rope = Rope::from(text);
@@ -319,7 +319,7 @@ impl<'a> WordCursor<'a> {
     /// **Example:**
     ///
     /// ```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let text = "{ }";
     /// let rope = Rope::from(text);
@@ -346,7 +346,7 @@ impl<'a> WordCursor<'a> {
     /// **Example**:
     /// ```rust
     /// # use lapce_xi_rope::Rope;
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// let rope = Rope::from("outer {inner}} world");
     /// let mut cursor = WordCursor::new(&rope, 0);
     /// let position = cursor.next_unmatched('}');
@@ -375,7 +375,7 @@ impl<'a> WordCursor<'a> {
     ///
     /// ```rust
     /// # use lapce_xi_rope::Rope;
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// let rope = Rope::from("outer {{inner} world");
     /// let mut cursor = WordCursor::new(&rope, 15);
     /// let position = cursor.previous_unmatched('{');
@@ -403,7 +403,7 @@ impl<'a> WordCursor<'a> {
     /// **Example**:
     ///
     ///```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let text = "violet are blue";
     /// let rope = Rope::from(text);
@@ -424,7 +424,7 @@ impl<'a> WordCursor<'a> {
     /// **Example**:
     ///
     ///```rust
-    /// # use floem_editor_core::word::WordCursor;
+    /// # use doc::lines::word::WordCursor;
     /// # use lapce_xi_rope::Rope;
     /// let text = "outer {{inner} world";
     /// let rope = Rope::from(text);
@@ -505,9 +505,9 @@ fn classify_boundary(
 #[cfg(test)]
 mod test {
     use lapce_xi_rope::Rope;
+    use crate::lines::mode::Mode;
 
     use super::WordCursor;
-    use crate::mode::Mode;
 
     #[test]
     fn prev_boundary_should_be_none_at_position_zero() {

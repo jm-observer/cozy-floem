@@ -146,15 +146,15 @@ mod tests {
 
         for test_case in test_cases {
             assert_eq!(
-                snap_to_soft_tab(&text, test_case.0, SnapDirection::Left, tab_width),
+                snap_to_soft_tab(&text, test_case.0, SnapDirection::Left, tab_width).unwrap(),
                 test_case.1
             );
             assert_eq!(
-                snap_to_soft_tab(&text, test_case.0, SnapDirection::Nearest, tab_width),
+                snap_to_soft_tab(&text, test_case.0, SnapDirection::Nearest, tab_width).unwrap(),
                 test_case.2
             );
             assert_eq!(
-                snap_to_soft_tab(&text, test_case.0, SnapDirection::Right, tab_width),
+                snap_to_soft_tab(&text, test_case.0, SnapDirection::Right, tab_width).unwrap(),
                 test_case.3
             );
         }
@@ -210,7 +210,7 @@ mod tests {
                     test_case.1,
                     SnapDirection::Left,
                     tab_width
-                ),
+                ).unwrap(),
                 test_case.2
             );
             assert_eq!(
@@ -220,7 +220,7 @@ mod tests {
                     test_case.1,
                     SnapDirection::Nearest,
                     tab_width
-                ),
+                ).unwrap(),
                 test_case.3
             );
             assert_eq!(
@@ -230,7 +230,7 @@ mod tests {
                     test_case.1,
                     SnapDirection::Right,
                     tab_width
-                ),
+                ).unwrap(),
                 test_case.4
             );
         }

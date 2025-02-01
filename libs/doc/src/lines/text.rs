@@ -93,8 +93,7 @@ impl SystemClipboard {
 
     #[cfg(windows)]
     pub fn get_file_list() -> Option<Vec<std::path::PathBuf>> {
-        todo!()
-        // floem::Clipboard::get_file_list().ok()
+        floem::Clipboard::get_file_list().ok()
     }
 }
 

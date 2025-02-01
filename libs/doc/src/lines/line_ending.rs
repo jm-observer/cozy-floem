@@ -422,7 +422,7 @@ mod tests {
             (34..35, LeChunkKind::Lf),
         ]);
         let c = LoneCrChunkSearch::new(text.iter_chunks(..));
-        assert_eq!(c.collect::<Vec<_>>(), Vec::new());
+        assert_eq!(c.collect::<Vec<_>>(), Vec::<usize>::new());
 
         // Test searching across different chunks of text
         // (Using a non-Rope iterator to simplify creation, however it
